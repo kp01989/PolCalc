@@ -10,6 +10,23 @@ st.markdown("""
     <style>
         .block-container { padding-top: 1.5rem; padding-bottom: 1rem; }
         label { font-size: 0.85rem !important; font-weight: bold !important; }
+        
+        /* કમ્પેરીઝન ટેબલ માટેનું નવું સેટિંગ (મોટા અક્ષર અને મીડીયમ જગ્યા) */
+        .custom-compare-table {
+            font-size: 1.15rem !important; /* ફોન્ટ મોટા કર્યા */
+            width: 70% !important; /* ટેબલની પહોળાઈ મીડીયમ કરી દીધી */
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        .custom-compare-table th, .custom-compare-table td {
+            padding: 10px 15px !important; /* વચ્ચેની જગ્યા મીડીયમ કરી */
+            border: 1px solid rgba(128, 128, 128, 0.3);
+            text-align: left;
+        }
+        .custom-compare-table th {
+            background-color: rgba(128, 128, 128, 0.1);
+            font-weight: bold;
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -135,7 +152,7 @@ if data_loaded[0] is not None:
                             rate_per_cts = calc_rap * (1 + (discount_percent / 100))
                             pol_amt = rate_per_cts * polish_weight
                             
-                            # ૫. Calculate દબાવે તો જ રિઝલ્ટ દેખાડવાનું 
+                            # Calculate દબાવે તો જ રિઝલ્ટ દેખાડવાનું 
                             if calc_clicked:
                                 st.subheader("📊 ગણતરીનું પરિણામ")
                                 res_col1, res_col2, res_col3, res_col4 = st.columns(4)
@@ -145,7 +162,7 @@ if data_loaded[0] is not None:
                                 res_col4.metric("Pol Amt ($)", f"${pol_amt:,.2f}")
                                 st.success("🎉 તમારો ડેટા સફળતાપૂર્વક કેલ્ક્યુલેટ થઈ ગયો છે!")
                             
-                            # ૬. Compare દબાવે તો ખાલી લિસ્ટમાં ઉમેરવાનું
+                            # Compare દબાવે તો ખાલી લિસ્ટમાં જ ઉમેરવાનું (ગણતરી નહિ દેખાય)
                             if comp_clicked:
                                 st.session_state['compare_list'].append({
                                     "Shape": shape,
@@ -178,8 +195,8 @@ if data_loaded[0] is not None:
         # કોલમના નામ Diamond 1, Diamond 2 એમ આપી દીધા
         df_vertical.columns = [f"Diamond {i+1}" for i in range(len(df_vertical.columns))]
         
-        # આનાથી ટેબલ એકદમ મસ્ત ઊભું દેખાશે
-        st.dataframe(df_vertical, use_container_width=True)
+        # HTML ફોર્મેટમાં ટેબલ રેન્ડર કર્યું (કસ્ટમ ડિઝાઇન માટે)
+        st.markdown(df_vertical.to_html(classes="custom-compare-table"), unsafe_allow_html=True)
         
         if st.button("🗑️ લિસ્ટ ક્લિયર કરો"):
             st.session_state['compare_list'] = []
