@@ -3,27 +3,24 @@ import pandas as pd
 import msoffcrypto
 import io
 
-# --- 1. પેજનું સેટિંગ અને કોમ્પેક્ટ લેઆઉટ ---
 st.set_page_config(page_title="Diamond Polish Calc", layout="wide")
 
 st.markdown("""
     <style>
         .block-container { padding-top: 1.5rem; padding-bottom: 1rem; }
         label { font-size: 0.85rem !important; font-weight: bold !important; }
-        
-        /* કમ્પેરીઝન ટેબલ માટેનું નવું સેટિંગ (સેન્ટર એલાઈનમેન્ટ સાથે) */
         .custom-compare-table {
             font-size: 0.95rem !important; 
-            width: 70% !important; 
+            width: 100% !important; 
             border-collapse: collapse;
             margin-top: 5px; 
             margin-bottom: 20px;
         }
         .custom-compare-table th, .custom-compare-table td {
-            padding: 8px 12px !important; 
+            padding: 4px 6px !important; 
             border: 1px solid rgba(128, 128, 128, 0.3);
-            text-align: center !important; /* બધું સેન્ટરમાં કરવા માટે */
-            vertical-align: middle !important; /* બધું મિડલમાં કરવા માટે */
+            text-align: center !important; 
+            vertical-align: middle !important; 
         }
         .custom-compare-table th {
             background-color: rgba(128, 128, 128, 0.1);
@@ -33,12 +30,11 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("💎 Diamond Polish Calculator")
+st.markdown("Select your diamond details below for automatic calculation.")
 
-# --- Compare માટેનું સ્ટોરેજ ---
 if 'compare_list' not in st.session_state:
     st.session_state['compare_list'] = []
 
-# --- 2. એક્સેલમાંથી ડેટા લોડ ---
 @st.cache_data
 def load_diamond_data():
     file_path = "Polish Calc_Updated_05-05-2026 - Copy.xlsm" 
@@ -57,7 +53,7 @@ def load_diamond_data():
                 df_list = pd.read_excel(file_path, sheet_name="List", header=None)
         return df_tables, df_list
     except Exception as e:
-        st.error(f"ફાઈલ ઓપન કરવામાં એરર: {e}")
+        st.error(f"Error opening file: {e}")
         return None, None
 
 data_loaded = load_diamond_data()
@@ -65,7 +61,6 @@ data_loaded = load_diamond_data()
 if data_loaded[0] is not None:
     df_tables, df_list = data_loaded
     
-    # --- 3. ૮ બોક્સ એક જ લાઈનમાં ---
     c1, c2, c3, c4, c5, c6, c7, c8 = st.columns(8)
     
     with c1: shape = st.selectbox("SHAPE", ["ROUND", "PRINCESS", "OVAL", "MARQUISE", "PEAR", "EMERALD"])
@@ -107,19 +102,17 @@ if data_loaded[0] is not None:
 
     st.write("")
 
-    # --- 4. બટન્સ ---
     btn1, btn2, empty_space = st.columns([2, 2, 6])
     with btn1:
         calc_clicked = st.button("Calculate", type="primary", use_container_width=True)
     with btn2:
         comp_clicked = st.button("Add to Compare ⚖️", type="secondary", use_container_width=True)
 
-    # --- ફાઇનલ ગણતરી અને લોજિક ---
     if calc_clicked or comp_clicked:
         if not calc_size or calc_size == "Error":
-            st.error("સાઈઝ ઓટોમેટિક કેલ્ક્યુલેટ થઈ શકી નથી.")
+            st.error("Size could not be calculated automatically.")
         elif calc_rap == 0.0:
-            st.error(f"VLOOKUP FAILED: '{search_key}' નામ એક્સેલની કોલમ 15 (O) માં મળ્યું નથી અથવા ત્યાં ભાવ 0 છે!")
+            st.error(f"VLOOKUP FAILED: '{search_key}' not found in Excel Column 15 (O) or price is 0!")
         else:
             try:
                 cut_fluo = f"{cut}-{fluorescence}" 
@@ -127,7 +120,7 @@ if data_loaded[0] is not None:
                 row_1 = df_tables.iloc[1].fillna('').astype(str).str.strip().str.upper()
                 
                 if cut_fluo not in row_0.values:
-                    st.error(f"Excel ની Tables શીટમાં '{cut_fluo}' નામનું કોઈ હેડિંગ મળ્યું નહિ!")
+                    st.error(f"Heading '{cut_fluo}' not found in Excel Tables sheet!")
                 else:
                     size_col_idx = 1
                     color_col_idx = 2
@@ -154,45 +147,67 @@ if data_loaded[0] is not None:
                             
                             if calc_clicked:
                                 st.divider()
-                                st.subheader("📊 ગણતરીનું પરિણામ")
+                                st.subheader("📊 Calculation Result")
                                 res_col1, res_col2, res_col3, res_col4 = st.columns(4)
                                 res_col1.metric("Rap Price ($)", f"${calc_rap:,.2f}")
                                 res_col2.metric("Discount / Prem. (%)", f"{discount_percent}%")
                                 res_col3.metric("Rate $ / Cts", f"${rate_per_cts:,.2f}")
                                 res_col4.metric("Pol Amt ($)", f"${pol_amt:,.2f}")
-                                st.success("🎉 તમારો ડેટા સફળતાપૂર્વક કેલ્ક્યુલેટ થઈ ગયો છે!")
+                                st.success("🎉 Data calculated successfully!")
                             
                             if comp_clicked:
-                                st.session_state['compare_list'].append({
-                                    "Shape": shape,
-                                    "Weight": polish_weight,
-                                    "Color": color,
-                                    "Clarity": clarity,
-                                    "Cut G": cut,              # અહિયાં Cut ની જગ્યાએ Cut G કરી દીધું
-                                    "Fluo.": fluorescence,   
-                                    "Rap Price": f"${calc_rap:,.2f}",
-                                    "Discount": f"{discount_percent}%",
-                                    "Rate/Cts": f"${rate_per_cts:,.2f}",
-                                    "Total Amount": f"${pol_amt:,.2f}"
-                                })
+                                if len(st.session_state['compare_list']) >= 10:
+                                    st.warning("⚠️ List is full! You can compare a maximum of 10 diamonds. Please download the data below.")
+                                else:
+                                    st.session_state['compare_list'].append({
+                                        "Shape": shape,
+                                        "Weight": polish_weight,
+                                        "Color": color,
+                                        "Clarity": clarity,
+                                        "Cut G": cut,
+                                        "Fluo.": fluorescence,   
+                                        "Rap Price": f"${calc_rap:,.2f}",
+                                        "Discount": f"{discount_percent}%",
+                                        "Rate/Cts": f"${rate_per_cts:,.2f}",
+                                        "Total Amount": f"${pol_amt:,.2f}"
+                                    })
                         else:
-                            st.warning(f"આ વજન ({polish_weight}) અને કલર ({color}) માટે Tables શીટમાં ડિસ્કાઉન્ટ ડેટા મળ્યો નથી.")
+                            st.warning(f"Discount data not found in Tables sheet for Weight ({polish_weight}) and Color ({color}).")
                     else:
-                        st.error("ક્લેરિટીનું નામ મેચ થતું નથી.")
+                        st.error("Clarity name does not match.")
             except Exception as e:
-                st.error(f"ગણતરીમાં અણધારી ભૂલ આવી: {e}")
+                st.error(f"Unexpected error in calculation: {e}")
 
-    # --- 7. ઊભું (Vertical) Compare ટેબલ દેખાડવું ---
     if st.session_state['compare_list']:
         st.write("") 
-        st.subheader("⚖️ ડાયમંડ કમ્પેરીઝન ટેબલ (Comparison)")
+        current_len = len(st.session_state['compare_list'])
+        st.subheader(f"⚖️ Diamond Comparison Table (Total: {current_len}/10)")
         
         df_compare = pd.DataFrame(st.session_state['compare_list'])
         df_vertical = df_compare.T
-        df_vertical.columns = [f"Diamond {i+1}" for i in range(len(df_vertical.columns))]
+        df_vertical.columns = [f"D {i+1}" for i in range(len(df_vertical.columns))]
         
         st.markdown(df_vertical.to_html(classes="custom-compare-table"), unsafe_allow_html=True)
         
-        if st.button("🗑️ લિસ્ટ ક્લિયર કરો"):
-            st.session_state['compare_list'] = []
-            st.rerun()
+        col_clear, col_download, col_empty = st.columns([2, 3, 5])
+        
+        with col_clear:
+            if st.button("🗑️ Clear List", use_container_width=True):
+                st.session_state['compare_list'] = []
+                st.rerun()
+                
+        with col_download:
+            if current_len >= 2:
+                output = io.BytesIO()
+                with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                    df_vertical.to_excel(writer, sheet_name='Comparison')
+                output.seek(0)
+                
+                st.download_button(
+                    label=f"📥 Download Data for {current_len} Diamonds",
+                    data=output,
+                    file_name="Diamond_Comparison.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                    type="primary"
+                )
