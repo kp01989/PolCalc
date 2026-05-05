@@ -44,7 +44,8 @@ if data_loaded[0] is not None:
     with col1:
         shape = st.selectbox("SHAPE (શેપ)", ["ROUND", "PRINCESS", "OVAL", "MARQUISE", "PEAR", "EMERALD"])
         color = st.selectbox("Color (કલર)", ["D", "E", "F", "G", "H", "I", "J", "K", "L", "M"])
-        clarity = st.selectbox("Clarity (ક્લેરિટી)", ["FL", "IF", "VVS1", "VVS2", "VS1", "VS2", "SI1", "SI2", "SI3"])
+        # અહિયાં ડ્રોપડાઉનમાંથી FL કાઢી નાખ્યું છે
+        clarity = st.selectbox("Clarity (ક્લેરિટી)", ["IF", "VVS1", "VVS2", "VS1", "VS2", "SI1", "SI2", "SI3"])
         
     with col2:
         cut = st.selectbox("Cut Group (કટ)", ["3EX", "VG", "EX", "GD", "FAIR"])
@@ -56,14 +57,11 @@ if data_loaded[0] is not None:
     # ==========================================
     calc_size = ""
     try:
-        # પાયથોનમાં કોલમ 12 એટલે ઇન્ડેક્સ 11, અને કોલમ 14 એટલે ઇન્ડેક્સ 13
         size_df = df_list.iloc[:, [11, 13]].copy() 
         size_df.columns = ['Weight', 'SizeLabel']
         size_df['Weight'] = pd.to_numeric(size_df['Weight'], errors='coerce')
-        # કચરો (ખાલી લાઈનો) જાતે જ સાફ કરી દેશે
         size_df = size_df.dropna(subset=['Weight', 'SizeLabel']).sort_values('Weight')
         
-        # Approximate Match (જે વજન નાખ્યું હોય એના બરાબર અથવા એનાથી નાનું વજન ગોતશે)
         for idx, row in size_df.iterrows():
             if polish_weight >= row['Weight']:
                 calc_size = str(row['SizeLabel']).strip()
@@ -77,17 +75,12 @@ if data_loaded[0] is not None:
     search_key = ""
     if calc_size and calc_size != "Error":
         
-        # ખાલી શબ્દોની આજુબાજુનો કચરો કાઢ્યો, પણ calc_size એમના એમ રાખી
         search_key = f"{shape.strip()}{calc_size}{clarity.strip()}{color.strip()}".upper()
         
         try:
-            # એક્સેલની કોલમ 15 (Index 14) નો ડેટા 
             lookup_col = df_list.iloc[:, 14].astype(str).str.strip().str.upper()
-            
-            # એક્સેલની કોલમ 16 (Index 15) નો ડેટા 
             result_col = df_list.iloc[:, 15]
             
-            # અસલી VLOOKUP (Exact Match)
             if search_key in lookup_col.values:
                 match_idx = lookup_col[lookup_col == search_key].index[0]
                 val = result_col.iloc[match_idx]
@@ -100,8 +93,7 @@ if data_loaded[0] is not None:
     with col3:
         st.text_input("Size (ઓટોમેટિક સાઈઝ)", value=calc_size, disabled=True)
         st.text_input("Rap Price ($) (ઓટોમેટિક રૅપ)", value=f"{calc_rap:,.2f}" if calc_rap else "0.00", disabled=True)
-        # 🔍 યુઝરને દેખાડવા માટે કે પાયથોન VLOOKUP માં એક્ઝેક્ટ શું સર્ચ કરે છે
-        st.caption(f"🔍 VLOOKUP Key: **{search_key}**")
+        # અહિયાંથી નીચે દેખાતું VLOOKUP Key વાળું લખાણ હટાવી દીધું છે!
         
     st.divider()
 
@@ -140,6 +132,7 @@ if data_loaded[0] is not None:
 
                     cut_fluo_idx = row_0[row_0 == cut_fluo].index[0]
                     
+                    # અહિયાં FL રાખ્યું છે જેથી કોલમ નંબર ગણવામાં ગોટાળો ના થાય
                     clarity_list = ["FL", "IF", "VVS1", "VVS2", "VS1", "VS2", "SI1", "SI2", "SI3"]
                     if clarity in clarity_list:
                         clarity_offset = clarity_list.index(clarity)
@@ -158,9 +151,6 @@ if data_loaded[0] is not None:
                             rate_per_cts = calc_rap * (1 + (discount_percent / 100))
                             pol_amt = rate_per_cts * polish_weight
                             
-                            # ==========================================
-                            # 4 COLUMN માં RESULT
-                            # ==========================================
                             st.subheader("📊 ગણતરીનું પરિણામ")
                             res_col1, res_col2, res_col3, res_col4 = st.columns(4)
                             
