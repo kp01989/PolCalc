@@ -52,7 +52,7 @@ if data_loaded[0] is not None:
         polish_weight = st.number_input("Polish Weight (વજન)", min_value=0.01, value=0.30, step=0.01)
 
     # ==========================================
-    # POINT 1: ઓટોમેટિક SIZE VLOOKUP (W2:X23)
+    # POINT 1: ઓટોમેટિક SIZE 
     # ==========================================
     calc_size = ""
     try:
@@ -68,26 +68,27 @@ if data_loaded[0] is not None:
         calc_size = "Error"
 
     # ==========================================
-    # POINT 2: ઓટોમેટિક RAP PRICE (તમારા કહ્યા મુજબ કોલમ સેટ કરી)
+    # POINT 2: ઓટોમેટિક RAP PRICE (EXACT MATCH - કોઈ વધારાની સ્પેસ નહિ)
     # ==========================================
     calc_rap = 0.0
+    joined_str = ""
     if calc_size and calc_size != "Error":
-        # ચારેય વસ્તુ જોઈન્ટ કરી
+        # સીધું જોઈન્ટ: વગર કોઈ સ્પેસ ઉમેર્યે (જેવું એક્સેલમાં છે એવું જ)
         joined_str = f"{shape}{calc_size}{clarity}{color}"
-        joined_str_clean = joined_str.replace(" ", "").upper()
-        
-        # પાયથોન 0 થી ગણતરી ચાલુ કરે છે, એટલે કોલમ 15 = ઇન્ડેક્સ 14, કોલમ 16 = ઇન્ડેક્સ 15
-        criteria_col_idx = 14  
-        result_col_idx = 15    
         
         try:
-            # 15 માં નંબરની કોલમમાં જોઈન્ટ કરેલું નામ ગોતશે
-            col_data = df_list.iloc[:, criteria_col_idx].astype(str).str.replace(" ", "").str.upper()
-            match_idx = col_data[col_data == joined_str_clean].index
+            # કોલમ 15 (ઇન્ડેક્સ 14) નો ડેટા 
+            col_data = df_list.iloc[:, 14].astype(str).str.strip()
+            
+            # Exact Match 
+            match_idx = col_data[col_data == joined_str].index
             
             if not match_idx.empty:
-                # મળી જાય એટલે 16 માં નંબરની કોલમમાંથી Rap Price લેશે
-                calc_rap = float(df_list.iloc[match_idx[0], result_col_idx])
+                # મળી જાય એટલે 16 માં નંબરની કોલમ (ઇન્ડેક્સ 15) માંથી Rap Price લેશે
+                val = df_list.iloc[match_idx[0], 15]
+                calc_rap = float(pd.to_numeric(val, errors='coerce'))
+                if pd.isna(calc_rap):
+                    calc_rap = 0.0
         except Exception as e:
             calc_rap = 0.0
 
@@ -102,7 +103,8 @@ if data_loaded[0] is not None:
         if not calc_size or calc_size == "Error":
             st.error("સાઈઝ ઓટોમેટિક કેલ્ક્યુલેટ થઈ શકી નથી. મહેરબાની કરીને List શીટમાં W2:X23 ચેક કરો.")
         elif calc_rap == 0.0:
-            st.error(f"Rap Price માટે તમે જોઈન્ટ કરેલું નામ '{shape} {calc_size} {clarity} {color}' એક્સેલની કોલમ 15 માં મળ્યું નથી!")
+            # એરર મેસેજમાં પણ હવે મેં વચ્ચેની બધી સ્પેસ કાઢી નાખી છે! 
+            st.error(f"Rap Price માટે નામ '{joined_str}' એક્સેલની કોલમ 15 (O) માં મળ્યું નથી અથવા ભાવ 0 છે!")
         else:
             try:
                 try:
@@ -151,7 +153,7 @@ if data_loaded[0] is not None:
                             pol_amt = rate_per_cts * polish_weight
                             
                             # ==========================================
-                            # POINT 3: 4 COLUMN માં RESULT 
+                            # POINT 3: 4 COLUMN 
                             # ==========================================
                             st.subheader("📊 ગણતરીનું પરિણામ")
                             
