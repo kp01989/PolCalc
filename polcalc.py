@@ -9,7 +9,7 @@ st.set_page_config(page_title="Diamond Polish Calc", layout="wide")
 st.title("💎 Diamond Polish Calculator")
 st.markdown("તમારા ડાયમંડની ડિટેલ્સ નીચે સિલેક્ટ કરો એટલે ઓટોમેટિક ગણતરી થઈ જશે.")
 
-# ફંક્શનનું નામ બદલ્યું છે જેથી જૂનો Cache ક્લિયર થઈ જાય
+# --- 2. એક્સેલમાંથી બધી શીટ લોડ કરવાનું ફંક્શન ---
 @st.cache_data
 def load_diamond_data():
     file_path = "Polish Calc_Updated_05-05-2026 - Copy.xlsm" 
@@ -22,95 +22,158 @@ def load_diamond_data():
                 decrypted_workbook = io.BytesIO()
                 office_file.load_key(password=file_password)
                 office_file.decrypt(decrypted_workbook)
-                df = pd.read_excel(decrypted_workbook, sheet_name="Tables", header=None)
+                df_tables = pd.read_excel(decrypted_workbook, sheet_name="Tables", header=None)
+                # List શીટ પણ સાથે જ લોડ કરી લીધી
+                df_list = pd.read_excel(decrypted_workbook, sheet_name="List", header=None) 
             else:
-                df = pd.read_excel(file_path, sheet_name="Tables", header=None)
-        return df
+                df_tables = pd.read_excel(file_path, sheet_name="Tables", header=None)
+                df_list = pd.read_excel(file_path, sheet_name="List", header=None)
+        return df_tables, df_list
     except Exception as e:
         st.error(f"ફાઈલ ઓપન કરવામાં એરર: {e}")
-        return None
+        return None, None
 
-df_tables = load_diamond_data()
+data_loaded = load_diamond_data()
 
-if df_tables is not None:
+if data_loaded[0] is not None:
+    df_tables, df_list = data_loaded
+    
     st.subheader("હીરાની વિગતો સિલેક્ટ કરો")
     
     col1, col2, col3 = st.columns(3)
+    
     with col1:
-        shape = st.selectbox("SHAPE (શેપ)", ["ROUND", "PRINCESS", "OVAL"])
+        shape = st.selectbox("SHAPE (શેપ)", ["ROUND", "PRINCESS", "OVAL", "MARQUISE", "PEAR", "EMERALD"])
         color = st.selectbox("Color (કલર)", ["D", "E", "F", "G", "H", "I", "J", "K", "L", "M"])
         clarity = st.selectbox("Clarity (ક્લેરિટી)", ["FL", "IF", "VVS1", "VVS2", "VS1", "VS2", "SI1", "SI2", "SI3"])
         
     with col2:
         cut = st.selectbox("Cut Group (કટ)", ["3EX", "VG", "EX", "GD", "FAIR"])
         fluorescence = st.selectbox("Fluorescence", ["NON", "FNT", "MED", "STG", "VSTG"])
-        size_range = st.selectbox("Size (સાઈઝ)", ["0.18 - 0.22", "0.23 - 0.29", "0.30 - 0.34", "0.35 - 0.39", "0.40 - 0.49"])
-        
-    with col3:
-        polish_weight = st.number_input("Polish Weight", min_value=0.01, value=0.30, step=0.01)
-        rap_price = st.number_input("Rap Price ($)", min_value=0.0, value=1700.0, step=100.0)
+        # વજન અહિયાં લીધું છે જેથી તરત ઓટોમેટિક સાઈઝ ગણાઈ જાય
+        polish_weight = st.number_input("Polish Weight (વજન)", min_value=0.01, value=0.30, step=0.01)
 
+    # ==========================================
+    # POINT 1: ઓટોમેટિક SIZE VLOOKUP (W2:X23)
+    # ==========================================
+    calc_size = ""
+    try:
+        # પાયથોનમાં W કોલમ 22 નંબર પર અને X 23 નંબર પર આવે (A=0 થી ગણીએ તો)
+        size_df = df_list.iloc[1:24, 22:24].copy() 
+        size_df.columns = ['Weight', 'SizeLabel']
+        size_df['Weight'] = pd.to_numeric(size_df['Weight'], errors='coerce')
+        size_df = size_df.dropna(subset=['Weight']).sort_values('Weight')
+        
+        # Approximate Match (જે વજન નાખ્યું હોય એના બરાબર અથવા એનાથી નાનું વજન ગોતશે)
+        for idx, row in size_df.iterrows():
+            if polish_weight >= row['Weight']:
+                calc_size = str(row['SizeLabel'])
+    except Exception as e:
+        calc_size = "Error"
+
+    # ==========================================
+    # POINT 2: ઓટોમેટિક RAP PRICE ગણતરી (SHAPE+SIZE+CLARITY+COLOR)
+    # ==========================================
+    calc_rap = 0.0
+    if calc_size and calc_size != "Error":
+        # ચારેય વસ્તુ જોઈન્ટ કરી (દા.ત. ROUND0.30 - 0.34VS1E)
+        joined_str = f"{shape}{calc_size}{clarity}{color}"
+        
+        # સ્પેસ કાઢીને બધું કેપિટલ કરી દીધું જેથી 100% મેચ થાય
+        joined_str_clean = joined_str.replace(" ", "").upper()
+        
+        # List શીટમાં બધી કોલમમાં આ જોઈન્ટ કરેલું નામ ગોતશે
+        for col_idx in range(df_list.shape[1] - 1):
+            col_data = df_list[col_idx].astype(str).str.replace(" ", "").str.upper()
+            match_idx = col_data[col_data == joined_str_clean].index
+            
+            if not match_idx.empty:
+                # નામ મળી જાય એટલે એની બાજુની કોલમમાંથી ભાવ ખેંચી લેશે
+                try:
+                    calc_rap = float(df_list.iloc[match_idx[0], col_idx + 1])
+                except:
+                    calc_rap = 0.0
+                break
+
+    with col3:
+        # ઓટોમેટિક આવેલા જવાબ અહિયાં બોક્સમાં દેખાડશે (યુઝર બદલી નહિ શકે)
+        st.text_input("Size (ઓટોમેટિક સાઈઝ)", value=calc_size, disabled=True)
+        st.text_input("Rap Price ($) (ઓટોમેટિક રૅપ)", value=f"{calc_rap:,.2f}" if calc_rap else "0.00", disabled=True)
+        
     st.divider()
 
+    # --- ફાઇનલ ગણતરી ---
     if st.button("Calculate Discount & Amount", type="primary"):
-        try:
-            base_size = float(size_range.split(" ")[0]) 
-            cut_fluo = f"{cut}-{fluorescence}" 
-            
-            # બુલેટપ્રૂફ મેચિંગ લોજિક
-            row_0 = df_tables.iloc[0].fillna('').astype(str).str.strip().str.upper()
-            row_1 = df_tables.iloc[1].fillna('').astype(str).str.strip().str.upper()
-            
-            if cut_fluo not in row_0.values:
-                st.error(f"Excel માં '{cut_fluo}' નામનું કોઈ હેડિંગ મળ્યું નહિ!")
-            else:
-                # 1. સાઈઝ અને કલર ની કોલમ જાતે જ શોધી લેશે
-                size_col_idx = None
-                color_col_idx = None
+        if not calc_size or calc_size == "Error":
+            st.error("સાઈઝ ઓટોમેટિક કેલ્ક્યુલેટ થઈ શકી નથી. મહેરબાની કરીને List શીટમાં W2:X23 ચેક કરો.")
+        elif calc_rap == 0.0:
+            st.error(f"Rap Price માટે તમે જોઈન્ટ કરેલું નામ '{shape} {calc_size} {clarity} {color}' એક્સેલની List શીટમાં મળ્યું નથી!")
+        else:
+            try:
+                # સાઈઝમાંથી પહેલો આંકડો ખેંચવો (જેમ કે 0.30)
+                try:
+                    base_size = float(calc_size.split("-")[0].strip())
+                except:
+                    base_size = float(calc_size.split(" ")[0].strip())
+                    
+                cut_fluo = f"{cut}-{fluorescence}" 
                 
-                for idx, val in row_1.items():
-                    if val == 'SIZE':
-                        size_col_idx = idx
-                    elif val == 'COLOR':
-                        color_col_idx = idx
-                        
-                # જો એક્સેલમાં નામ અલગ હોય તો ડીફોલ્ટ સેટિંગ
-                if size_col_idx is None: size_col_idx = 1
-                if color_col_idx is None: color_col_idx = 2
-
-                # 2. કટ અને ફ્લોરોસન્સ ની કોલમ શોધશે
-                cut_fluo_idx = row_0[row_0 == cut_fluo].index[0]
+                row_0 = df_tables.iloc[0].fillna('').astype(str).str.strip().str.upper()
+                row_1 = df_tables.iloc[1].fillna('').astype(str).str.strip().str.upper()
                 
-                # 3. ક્લેરિટી ગોતીને સાચી કોલમ પકડશે
-                clarity_list = ["FL", "IF", "VVS1", "VVS2", "VS1", "VS2", "SI1", "SI2", "SI3"]
-                if clarity in clarity_list:
-                    clarity_offset = clarity_list.index(clarity)
-                    final_col_idx = cut_fluo_idx + clarity_offset
-                    
-                    # 4. સાઈઝ અને કલરનો ડેટા મેચ કરશે
-                    data_rows = df_tables.iloc[2:].copy()
-                    
-                    size_match = pd.to_numeric(data_rows[size_col_idx], errors='coerce') == base_size
-                    color_match = data_rows[color_col_idx].astype(str).str.strip().str.upper() == color
-                    
-                    match_data = data_rows[size_match & color_match]
-                    
-                    if not match_data.empty:
-                        discount_percent = float(match_data.iloc[0, final_col_idx])
-                        
-                        rate_per_cts = rap_price * (1 + (discount_percent / 100))
-                        pol_amt = rate_per_cts * polish_weight
-                        
-                        st.subheader("📊 ગણતરીનું પરિણામ")
-                        res_col1, res_col2, res_col3 = st.columns(3)
-                        res_col1.metric("Discount / Prem. (%)", f"{discount_percent}%")
-                        res_col2.metric("Rate $ / Cts", f"${rate_per_cts:,.2f}")
-                        res_col3.metric("Pol Amt ($)", f"${pol_amt:,.2f}")
-                        
-                        st.success("🎉 તમારો ડેટા સફળતાપૂર્વક કેલ્ક્યુલેટ થઈ ગયો છે!")
-                    else:
-                        st.warning(f"આ સાઈઝ ({base_size}) અને કલર ({color}) માટે એક્સેલમાં ડેટા મળ્યો નથી.")
+                if cut_fluo not in row_0.values:
+                    st.error(f"Excel ની Tables શીટમાં '{cut_fluo}' નામનું કોઈ હેડિંગ મળ્યું નહિ!")
                 else:
-                    st.error("ક્લેરિટીનું નામ મેચ થતું નથી.")
-        except Exception as e:
-            st.error(f"ગણતરીમાં અણધારી ભૂલ આવી: {e}")
+                    size_col_idx = None
+                    color_col_idx = None
+                    
+                    for idx, val in row_1.items():
+                        if val == 'SIZE':
+                            size_col_idx = idx
+                        elif val == 'COLOR':
+                            color_col_idx = idx
+                            
+                    if size_col_idx is None: size_col_idx = 1
+                    if color_col_idx is None: color_col_idx = 2
+
+                    cut_fluo_idx = row_0[row_0 == cut_fluo].index[0]
+                    
+                    clarity_list = ["FL", "IF", "VVS1", "VVS2", "VS1", "VS2", "SI1", "SI2", "SI3"]
+                    if clarity in clarity_list:
+                        clarity_offset = clarity_list.index(clarity)
+                        final_col_idx = cut_fluo_idx + clarity_offset
+                        
+                        data_rows = df_tables.iloc[2:].copy()
+                        
+                        size_match = pd.to_numeric(data_rows[size_col_idx], errors='coerce') == base_size
+                        color_match = data_rows[color_col_idx].astype(str).str.strip().str.upper() == color
+                        
+                        match_data = data_rows[size_match & color_match]
+                        
+                        if not match_data.empty:
+                            discount_percent = float(match_data.iloc[0, final_col_idx])
+                            
+                            # ઓટોમેટિક આવેલા Rap Price પરથી ગણતરી
+                            rate_per_cts = calc_rap * (1 + (discount_percent / 100))
+                            pol_amt = rate_per_cts * polish_weight
+                            
+                            # ==========================================
+                            # POINT 3: 4 COLUMN માં RESULT દેખાડવું
+                            # ==========================================
+                            st.subheader("📊 ગણતરીનું પરિણામ")
+                            
+                            # અહિયાં 3 ની જગ્યાએ 4 કોલમ કરી દીધી છે
+                            res_col1, res_col2, res_col3, res_col4 = st.columns(4)
+                            
+                            res_col1.metric("Rap Price ($)", f"${calc_rap:,.2f}")
+                            res_col2.metric("Discount / Prem. (%)", f"{discount_percent}%")
+                            res_col3.metric("Rate $ / Cts", f"${rate_per_cts:,.2f}")
+                            res_col4.metric("Pol Amt ($)", f"${pol_amt:,.2f}")
+                            
+                            st.success("🎉 તમારો ડેટા સફળતાપૂર્વક કેલ્ક્યુલેટ થઈ ગયો છે!")
+                        else:
+                            st.warning(f"આ સાઈઝ ({base_size}) અને કલર ({color}) માટે ડિસ્કાઉન્ટ ડેટા મળ્યો નથી.")
+                    else:
+                        st.error("ક્લેરિટીનું નામ મેચ થતું નથી.")
+            except Exception as e:
+                st.error(f"ગણતરીમાં અણધારી ભૂલ આવી: {e}")
