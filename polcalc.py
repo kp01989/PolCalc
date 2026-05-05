@@ -6,11 +6,9 @@ import io
 # --- 1. પેજનું સેટિંગ અને કોમ્પેક્ટ લેઆઉટ ---
 st.set_page_config(page_title="Diamond Polish Calc", layout="wide")
 
-# વધારાની બધી જ જગ્યા કાઢવા માટેનું CSS
 st.markdown("""
     <style>
         .block-container { padding-top: 1.5rem; padding-bottom: 1rem; }
-        /* બોક્સના નામ નાના કરવા માટે */
         label { font-size: 0.85rem !important; font-weight: bold !important; }
     </style>
 """, unsafe_allow_html=True)
@@ -48,12 +46,9 @@ data_loaded = load_diamond_data()
 if data_loaded[0] is not None:
     df_tables, df_list = data_loaded
     
-    # =========================================================
-    # 3. બધા જ ૮ બોક્સ એક જ લાઈનમાં (8 Columns in a single row)
-    # =========================================================
+    # --- 3. ૮ બોક્સ એક જ લાઈનમાં ---
     c1, c2, c3, c4, c5, c6, c7, c8 = st.columns(8)
     
-    # પહેલા ૬ બોક્સમાં યુઝર ઇનપુટ
     with c1: shape = st.selectbox("SHAPE", ["ROUND", "PRINCESS", "OVAL", "MARQUISE", "PEAR", "EMERALD"])
     with c2: color = st.selectbox("Color", ["D", "E", "F", "G", "H", "I", "J", "K", "L", "M"])
     with c3: clarity = st.selectbox("Clarity", ["IF", "VVS1", "VVS2", "VS1", "VS2", "SI1", "SI2", "SI3"])
@@ -61,7 +56,6 @@ if data_loaded[0] is not None:
     with c5: fluorescence = st.selectbox("Fluo.", ["NON", "FNT", "MED", "STG", "VSTG"])
     with c6: polish_weight = st.number_input("Weight", min_value=0.01, value=0.30, step=0.01)
 
-    # --- ઓટોમેટિક સાઈઝ અને રેપ ની ગણતરી ---
     calc_size = ""
     try:
         size_df = df_list.iloc[:, [11, 13]].copy() 
@@ -89,13 +83,12 @@ if data_loaded[0] is not None:
         except:
             calc_rap = 0.0
 
-    # છેલ્લા ૨ બોક્સ (Read-Only) એ જ લાઈનમાં
     with c7: st.text_input("Size", value=calc_size, disabled=True)
     with c8: st.text_input("Rap Price", value=f"{calc_rap:,.2f}" if calc_rap else "0.00", disabled=True)
 
-    st.write("") # થોડી જગ્યા માટે
+    st.write("")
 
-    # --- 4. બટન્સ (Calculate અને Compare) ---
+    # --- 4. બટન્સ ---
     btn1, btn2, empty_space = st.columns([2, 2, 6])
     with btn1:
         calc_clicked = st.button("Calculate", type="primary", use_container_width=True)
@@ -104,7 +97,7 @@ if data_loaded[0] is not None:
 
     st.divider()
 
-    # --- ફાઇનલ ગણતરી ---
+    # --- ફાઇનલ ગણતરી અને લોજિક ---
     if calc_clicked or comp_clicked:
         if not calc_size or calc_size == "Error":
             st.error("સાઈઝ ઓટોમેટિક કેલ્ક્યુલેટ થઈ શકી નથી.")
@@ -142,29 +135,29 @@ if data_loaded[0] is not None:
                             rate_per_cts = calc_rap * (1 + (discount_percent / 100))
                             pol_amt = rate_per_cts * polish_weight
                             
-                            # રિઝલ્ટ દેખાડવું
-                            st.subheader("📊 ગણતરીનું પરિણામ")
-                            res_col1, res_col2, res_col3, res_col4 = st.columns(4)
-                            res_col1.metric("Rap Price ($)", f"${calc_rap:,.2f}")
-                            res_col2.metric("Discount / Prem. (%)", f"{discount_percent}%")
-                            res_col3.metric("Rate $ / Cts", f"${rate_per_cts:,.2f}")
-                            res_col4.metric("Pol Amt ($)", f"${pol_amt:,.2f}")
+                            # ૫. Calculate દબાવે તો જ રિઝલ્ટ દેખાડવાનું 
+                            if calc_clicked:
+                                st.subheader("📊 ગણતરીનું પરિણામ")
+                                res_col1, res_col2, res_col3, res_col4 = st.columns(4)
+                                res_col1.metric("Rap Price ($)", f"${calc_rap:,.2f}")
+                                res_col2.metric("Discount / Prem. (%)", f"{discount_percent}%")
+                                res_col3.metric("Rate $ / Cts", f"${rate_per_cts:,.2f}")
+                                res_col4.metric("Pol Amt ($)", f"${pol_amt:,.2f}")
+                                st.success("🎉 તમારો ડેટા સફળતાપૂર્વક કેલ્ક્યુલેટ થઈ ગયો છે!")
                             
-                            # Compare લિસ્ટમાં સેવ કરવું
+                            # ૬. Compare દબાવે તો ખાલી લિસ્ટમાં ઉમેરવાનું
                             if comp_clicked:
                                 st.session_state['compare_list'].append({
                                     "Shape": shape,
                                     "Weight": polish_weight,
                                     "Color": color,
                                     "Clarity": clarity,
-                                    "Rap ($)": calc_rap,
-                                    "Disc (%)": discount_percent,
-                                    "Rate/Cts ($)": round(rate_per_cts, 2),
-                                    "Amount ($)": round(pol_amt, 2)
+                                    "Rap Price": f"${calc_rap:,.2f}",
+                                    "Discount": f"{discount_percent}%",
+                                    "Rate/Cts": f"${rate_per_cts:,.2f}",
+                                    "Total Amount": f"${pol_amt:,.2f}"
                                 })
                                 st.success("✅ આ હીરો Compare લિસ્ટમાં ઉમેરાઈ ગયો છે!")
-                            elif calc_clicked:
-                                st.success("🎉 તમારો ડેટા સફળતાપૂર્વક કેલ્ક્યુલેટ થઈ ગયો છે!")
                         else:
                             st.warning(f"આ વજન ({polish_weight}) અને કલર ({color}) માટે Tables શીટમાં ડિસ્કાઉન્ટ ડેટા મળ્યો નથી.")
                     else:
@@ -172,14 +165,21 @@ if data_loaded[0] is not None:
             except Exception as e:
                 st.error(f"ગણતરીમાં અણધારી ભૂલ આવી: {e}")
 
-    # --- 5. Compare ટેબલ દેખાડવું ---
+    # --- 7. ઊભું (Vertical) Compare ટેબલ દેખાડવું ---
     if st.session_state['compare_list']:
-        st.divider()
         st.subheader("⚖️ ડાયમંડ કમ્પેરીઝન ટેબલ (Comparison)")
         
+        # ડેટાફ્રેમ બનાવી
         df_compare = pd.DataFrame(st.session_state['compare_list'])
-        df_compare.index = df_compare.index + 1 
-        st.dataframe(df_compare, use_container_width=True)
+        
+        # ડેટાફ્રેમને ઊભી (Transpose) કરી
+        df_vertical = df_compare.T
+        
+        # કોલમના નામ Diamond 1, Diamond 2 એમ આપી દીધા
+        df_vertical.columns = [f"Diamond {i+1}" for i in range(len(df_vertical.columns))]
+        
+        # આનાથી ટેબલ એકદમ મસ્ત ઊભું દેખાશે
+        st.dataframe(df_vertical, use_container_width=True)
         
         if st.button("🗑️ લિસ્ટ ક્લિયર કરો"):
             st.session_state['compare_list'] = []
