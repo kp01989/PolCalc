@@ -136,7 +136,17 @@ if data_loaded[0] is not None:
                         final_col_idx = cut_fluo_idx + clarity_offset
                         data_rows = df_tables.iloc[2:].copy()
                         
-                        size_match = pd.to_numeric(data_rows[size_col_idx], errors='coerce') == polish_weight
+                        # --- અહિયાં ફોલ્ટ હતો, જે હવે સોલ્વ કરી દીધો છે ---
+                        # એક્સેલના 0.3 સાથે મેચ કરવા માટે 0.30 - 0.34 માંથી 0.30 કાઢ્યું 
+                        try:
+                            base_size = float(calc_size.split("-")[0].strip())
+                        except:
+                            try:
+                                base_size = float(calc_size.split(" ")[0].strip())
+                            except:
+                                base_size = polish_weight
+                                
+                        size_match = pd.to_numeric(data_rows[size_col_idx], errors='coerce') == base_size
                         color_match = data_rows[color_col_idx].astype(str).str.strip().str.upper() == color
                         match_data = data_rows[size_match & color_match]
                         
