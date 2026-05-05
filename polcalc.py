@@ -52,23 +52,26 @@ if data_loaded[0] is not None:
         polish_weight = st.number_input("Polish Weight (વજન)", min_value=0.01, value=0.30, step=0.01)
 
     # ==========================================
-    # POINT 1: SIZE માટે ઓટોમેટિક VLOOKUP
+    # POINT 1: SIZE માટે ઓટોમેટિક VLOOKUP (કોલમ 12 અને 14)
     # ==========================================
     calc_size = ""
     try:
-        size_df = df_list.iloc[1:24, 22:24].copy() 
+        # પાયથોનમાં કોલમ 12 એટલે ઇન્ડેક્સ 11, અને કોલમ 14 એટલે ઇન્ડેક્સ 13
+        size_df = df_list.iloc[:, [11, 13]].copy() 
         size_df.columns = ['Weight', 'SizeLabel']
         size_df['Weight'] = pd.to_numeric(size_df['Weight'], errors='coerce')
-        size_df = size_df.dropna(subset=['Weight']).sort_values('Weight')
+        # કચરો (ખાલી લાઈનો) જાતે જ સાફ કરી દેશે
+        size_df = size_df.dropna(subset=['Weight', 'SizeLabel']).sort_values('Weight')
         
+        # Approximate Match (જે વજન નાખ્યું હોય એના બરાબર અથવા એનાથી નાનું વજન ગોતશે)
         for idx, row in size_df.iterrows():
             if polish_weight >= row['Weight']:
-                calc_size = str(row['SizeLabel']) # અહિયાંથી બધી સ્પેસની છેડછાડ કાઢી નાખી
+                calc_size = str(row['SizeLabel']).strip()
     except Exception as e:
         calc_size = "Error"
 
     # ==========================================
-    # POINT 2: RAP PRICE માટે પર્ફેક્ટ PURE VLOOKUP (સાચી સ્પેસ સાથે)
+    # POINT 2: RAP PRICE માટે પર્ફેક્ટ PURE VLOOKUP 
     # ==========================================
     calc_rap = 0.0
     search_key = ""
