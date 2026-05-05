@@ -49,10 +49,10 @@ if data_loaded[0] is not None:
     with col2:
         cut = st.selectbox("Cut Group (કટ)", ["3EX", "VG", "EX", "GD", "FAIR"])
         fluorescence = st.selectbox("Fluorescence", ["NON", "FNT", "MED", "STG", "VSTG"])
-        polish_weight = st.number_input("Polish Weight (વજન)", min_value=0.01, value=0.30, step=0.01)
+        polish_weight = st.number_input("Polish Weight (વજન)", min_value=0.01, value=0.40, step=0.01)
 
     # ==========================================
-    # POINT 1: VLOOKUP (Approximate Match) for SIZE
+    # POINT 1: SIZE માટે ઓટોમેટિક VLOOKUP
     # ==========================================
     calc_size = ""
     try:
@@ -68,25 +68,28 @@ if data_loaded[0] is not None:
         calc_size = "Error"
 
     # ==========================================
-    # POINT 2: VLOOKUP (Exact Match) for RAP PRICE 
+    # POINT 2: RAP PRICE માટે પર્ફેક્ટ PURE VLOOKUP 
     # ==========================================
     calc_rap = 0.0
-    joined_str = ""
+    search_key = ""
     if calc_size and calc_size != "Error":
-        
-        # આપણું સર્ચ કરવાનું નામ (બધી જ સ્પેસ હટાવીને કેપિટલ કર્યું)
-        joined_str = f"{shape}{calc_size}{clarity}{color}".replace(" ", "").upper()
+        # ચારેય વસ્તુ જોઈન્ટ કરી 
+        raw_joined_str = f"{shape}{calc_size}{clarity}{color}"
+        # પાયથોન માટે બધી જ સ્પેસ કાઢીને સર્ચ-કી બનાવી
+        search_key = raw_joined_str.replace(" ", "").upper()
         
         try:
-            # 15મી કોલમ (Index 14) નો ડેટા લીધો અને એમાંથી પણ બધી જ સ્પેસ કાઢી નાખી
-            lookup_range = df_list.iloc[:, 14].astype(str).str.replace(" ", "").str.upper()
+            # એક્સેલની કોલમ 15 (O) ને ઇન્ડેક્સ 14 તરીકે લીધી
+            # regex=True વાપરીને અદ્રશ્ય સ્પેસ અને કચરો બધું જ સાફ કરી દીધું
+            lookup_col = df_list.iloc[:, 14].astype(str).str.replace(r'\s+', '', regex=True).str.upper()
             
-            # પર્ફેક્ટ VLOOKUP માર્યું
-            if joined_str in lookup_range.values:
-                match_idx = lookup_range[lookup_range == joined_str].index[0]
-                
-                # 16મી કોલમ (Index 15) માંથી જવાબ લીધો
-                val = df_list.iloc[match_idx, 15]
+            # એક્સેલની કોલમ 16 (P) ને ઇન્ડેક્સ 15 તરીકે લીધી
+            result_col = df_list.iloc[:, 15]
+            
+            # અસલી VLOOKUP (Exact Match)
+            if search_key in lookup_col.values:
+                match_idx = lookup_col[lookup_col == search_key].index[0]
+                val = result_col.iloc[match_idx]
                 calc_rap = float(pd.to_numeric(val, errors='coerce'))
                 if pd.isna(calc_rap):
                     calc_rap = 0.0
@@ -96,22 +99,27 @@ if data_loaded[0] is not None:
     with col3:
         st.text_input("Size (ઓટોમેટિક સાઈઝ)", value=calc_size, disabled=True)
         st.text_input("Rap Price ($) (ઓટોમેટિક રૅપ)", value=f"{calc_rap:,.2f}" if calc_rap else "0.00", disabled=True)
+        # યુઝરને દેખાડવા માટે કે પાયથોન VLOOKUP માં શું સર્ચ કરે છે
+        st.caption(f"🔍 VLOOKUP Key: **{search_key}**")
         
     st.divider()
 
     # --- ફાઇનલ ગણતરી ---
     if st.button("Calculate Discount & Amount", type="primary"):
         if not calc_size or calc_size == "Error":
-            st.error("સાઈઝ ઓટોમેટિક કેલ્ક્યુલેટ થઈ શકી નથી. મહેરબાની કરીને List શીટમાં W2:X23 ચેક કરો.")
+            st.error("સાઈઝ ઓટોમેટિક કેલ્ક્યુલેટ થઈ શકી નથી.")
         elif calc_rap == 0.0:
-            st.error(f"VLOOKUP ERROR: '{joined_str}' નામ એક્સેલની કોલમ 15 (O) માં મળ્યું નથી અથવા ભાવ 0 છે!")
+            st.error(f"VLOOKUP FAILED: '{search_key}' નામ એક્સેલની કોલમ 15 (O) માં મળ્યું નથી અથવા ત્યાં ભાવ 0 છે!")
         else:
             try:
                 try:
                     base_size = float(calc_size.split("-")[0].strip())
                 except:
-                    base_size = float(calc_size.split(" ")[0].strip())
-                    
+                    try:
+                        base_size = float(calc_size.split(" ")[0].strip())
+                    except:
+                        base_size = polish_weight
+                        
                 cut_fluo = f"{cut}-{fluorescence}" 
                 
                 row_0 = df_tables.iloc[0].fillna('').astype(str).str.strip().str.upper()
@@ -120,17 +128,14 @@ if data_loaded[0] is not None:
                 if cut_fluo not in row_0.values:
                     st.error(f"Excel ની Tables શીટમાં '{cut_fluo}' નામનું કોઈ હેડિંગ મળ્યું નહિ!")
                 else:
-                    size_col_idx = None
-                    color_col_idx = None
+                    size_col_idx = 1
+                    color_col_idx = 2
                     
                     for idx, val in row_1.items():
                         if val == 'SIZE':
                             size_col_idx = idx
                         elif val == 'COLOR':
                             color_col_idx = idx
-                            
-                    if size_col_idx is None: size_col_idx = 1
-                    if color_col_idx is None: color_col_idx = 2
 
                     cut_fluo_idx = row_0[row_0 == cut_fluo].index[0]
                     
@@ -153,10 +158,9 @@ if data_loaded[0] is not None:
                             pol_amt = rate_per_cts * polish_weight
                             
                             # ==========================================
-                            # POINT 3: 4 COLUMN 
+                            # POINT 3: 4 COLUMN માં RESULT
                             # ==========================================
                             st.subheader("📊 ગણતરીનું પરિણામ")
-                            
                             res_col1, res_col2, res_col3, res_col4 = st.columns(4)
                             
                             res_col1.metric("Rap Price ($)", f"${calc_rap:,.2f}")
