@@ -3,23 +3,25 @@ import pandas as pd
 import msoffcrypto
 import io
 
-# --- 1. પેજનું સેટિંગ અને ખાલી જગ્યા ઓછી કરવાનું CSS ---
+# --- 1. પેજનું સેટિંગ અને કોમ્પેક્ટ લેઆઉટ ---
 st.set_page_config(page_title="Diamond Polish Calc", layout="wide")
 
-# આ કોડથી ઉપરની નકામી જગ્યા ઓછી થઈ જશે
+# વધારાની બધી જ જગ્યા કાઢવા માટેનું CSS
 st.markdown("""
     <style>
         .block-container { padding-top: 1.5rem; padding-bottom: 1rem; }
+        /* બોક્સના નામ નાના કરવા માટે */
+        label { font-size: 0.85rem !important; font-weight: bold !important; }
     </style>
 """, unsafe_allow_html=True)
 
 st.title("💎 Diamond Polish Calculator")
 
-# --- Compare માટેનું સ્ટોરેજ (Session State) ---
+# --- Compare માટેનું સ્ટોરેજ ---
 if 'compare_list' not in st.session_state:
     st.session_state['compare_list'] = []
 
-# --- 2. એક્સેલમાંથી બધી શીટ લોડ કરવાનું ફંક્શન ---
+# --- 2. એક્સેલમાંથી ડેટા લોડ ---
 @st.cache_data
 def load_diamond_data():
     file_path = "Polish Calc_Updated_05-05-2026 - Copy.xlsm" 
@@ -46,18 +48,20 @@ data_loaded = load_diamond_data()
 if data_loaded[0] is not None:
     df_tables, df_list = data_loaded
     
-    # --- 3. કોમ્પેક્ટ ૪-કોલમ ડિઝાઇન (બધું ઉપર અને લાઈનમાં) ---
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        shape = st.selectbox("SHAPE (શેપ)", ["ROUND", "PRINCESS", "OVAL", "MARQUISE", "PEAR", "EMERALD"])
-    with c2:
-        color = st.selectbox("Color (કલર)", ["D", "E", "F", "G", "H", "I", "J", "K", "L", "M"])
-    with c3:
-        clarity = st.selectbox("Clarity (ક્લેરિટી)", ["IF", "VVS1", "VVS2", "VS1", "VS2", "SI1", "SI2", "SI3"])
-    with c4:
-        polish_weight = st.number_input("Polish Weight (વજન)", min_value=0.01, value=0.30, step=0.01)
+    # =========================================================
+    # 3. બધા જ ૮ બોક્સ એક જ લાઈનમાં (8 Columns in a single row)
+    # =========================================================
+    c1, c2, c3, c4, c5, c6, c7, c8 = st.columns(8)
+    
+    # પહેલા ૬ બોક્સમાં યુઝર ઇનપુટ
+    with c1: shape = st.selectbox("SHAPE", ["ROUND", "PRINCESS", "OVAL", "MARQUISE", "PEAR", "EMERALD"])
+    with c2: color = st.selectbox("Color", ["D", "E", "F", "G", "H", "I", "J", "K", "L", "M"])
+    with c3: clarity = st.selectbox("Clarity", ["IF", "VVS1", "VVS2", "VS1", "VS2", "SI1", "SI2", "SI3"])
+    with c4: cut = st.selectbox("Cut", ["3EX", "VG", "EX", "GD", "FAIR"])
+    with c5: fluorescence = st.selectbox("Fluo.", ["NON", "FNT", "MED", "STG", "VSTG"])
+    with c6: polish_weight = st.number_input("Weight", min_value=0.01, value=0.30, step=0.01)
 
-    # --- ઓટોમેટિક VLOOKUP ની ગણતરી ---
+    # --- ઓટોમેટિક સાઈઝ અને રેપ ની ગણતરી ---
     calc_size = ""
     try:
         size_df = df_list.iloc[:, [11, 13]].copy() 
@@ -85,18 +89,11 @@ if data_loaded[0] is not None:
         except:
             calc_rap = 0.0
 
-    # --- નીચેની લાઈન માટે બીજી ૪-કોલમ ---
-    c5, c6, c7, c8 = st.columns(4)
-    with c5:
-        cut = st.selectbox("Cut Group (કટ)", ["3EX", "VG", "EX", "GD", "FAIR"])
-    with c6:
-        fluorescence = st.selectbox("Fluorescence", ["NON", "FNT", "MED", "STG", "VSTG"])
-    with c7:
-        st.text_input("Size (ઓટોમેટિક સાઈઝ)", value=calc_size, disabled=True)
-    with c8:
-        st.text_input("Rap Price ($) (ઓટોમેટિક રૅપ)", value=f"{calc_rap:,.2f}" if calc_rap else "0.00", disabled=True)
+    # છેલ્લા ૨ બોક્સ (Read-Only) એ જ લાઈનમાં
+    with c7: st.text_input("Size", value=calc_size, disabled=True)
+    with c8: st.text_input("Rap Price", value=f"{calc_rap:,.2f}" if calc_rap else "0.00", disabled=True)
 
-    st.divider()
+    st.write("") # થોડી જગ્યા માટે
 
     # --- 4. બટન્સ (Calculate અને Compare) ---
     btn1, btn2, empty_space = st.columns([2, 2, 6])
@@ -104,6 +101,8 @@ if data_loaded[0] is not None:
         calc_clicked = st.button("Calculate", type="primary", use_container_width=True)
     with btn2:
         comp_clicked = st.button("Add to Compare ⚖️", type="secondary", use_container_width=True)
+
+    st.divider()
 
     # --- ફાઇનલ ગણતરી ---
     if calc_clicked or comp_clicked:
@@ -178,13 +177,10 @@ if data_loaded[0] is not None:
         st.divider()
         st.subheader("⚖️ ડાયમંડ કમ્પેરીઝન ટેબલ (Comparison)")
         
-        # ડેટાફ્રેમ બનાવીને દેખાડવું
         df_compare = pd.DataFrame(st.session_state['compare_list'])
-        # ઇન્ડેક્સ 1 થી ચાલુ કરવા માટે
         df_compare.index = df_compare.index + 1 
         st.dataframe(df_compare, use_container_width=True)
         
-        # ક્લિયર બટન
         if st.button("🗑️ લિસ્ટ ક્લિયર કરો"):
             st.session_state['compare_list'] = []
             st.rerun()
