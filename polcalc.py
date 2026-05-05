@@ -44,7 +44,6 @@ if data_loaded[0] is not None:
     with col1:
         shape = st.selectbox("SHAPE (શેપ)", ["ROUND", "PRINCESS", "OVAL", "MARQUISE", "PEAR", "EMERALD"])
         color = st.selectbox("Color (કલર)", ["D", "E", "F", "G", "H", "I", "J", "K", "L", "M"])
-        # અહિયાં ડ્રોપડાઉનમાંથી FL કાઢી નાખ્યું છે
         clarity = st.selectbox("Clarity (ક્લેરિટી)", ["IF", "VVS1", "VVS2", "VS1", "VS2", "SI1", "SI2", "SI3"])
         
     with col2:
@@ -53,7 +52,7 @@ if data_loaded[0] is not None:
         polish_weight = st.number_input("Polish Weight (વજન)", min_value=0.01, value=0.30, step=0.01)
 
     # ==========================================
-    # POINT 1: SIZE માટે ઓટોમેટિક VLOOKUP (કોલમ 12 અને 14)
+    # POINT 1: SIZE માટે ઓટોમેટિક VLOOKUP
     # ==========================================
     calc_size = ""
     try:
@@ -93,7 +92,6 @@ if data_loaded[0] is not None:
     with col3:
         st.text_input("Size (ઓટોમેટિક સાઈઝ)", value=calc_size, disabled=True)
         st.text_input("Rap Price ($) (ઓટોમેટિક રૅપ)", value=f"{calc_rap:,.2f}" if calc_rap else "0.00", disabled=True)
-        # અહિયાંથી નીચે દેખાતું VLOOKUP Key વાળું લખાણ હટાવી દીધું છે!
         
     st.divider()
 
@@ -105,14 +103,7 @@ if data_loaded[0] is not None:
             st.error(f"VLOOKUP FAILED: '{search_key}' નામ એક્સેલની કોલમ 15 (O) માં મળ્યું નથી અથવા ત્યાં ભાવ 0 છે!")
         else:
             try:
-                try:
-                    base_size = float(calc_size.split("-")[0].strip())
-                except:
-                    try:
-                        base_size = float(calc_size.split(" ")[0].strip())
-                    except:
-                        base_size = polish_weight
-                        
+                # અહીથી base_size વાળું જૂનું લોજિક ઉડાડી દીધું!
                 cut_fluo = f"{cut}-{fluorescence}" 
                 
                 row_0 = df_tables.iloc[0].fillna('').astype(str).str.strip().str.upper()
@@ -132,7 +123,6 @@ if data_loaded[0] is not None:
 
                     cut_fluo_idx = row_0[row_0 == cut_fluo].index[0]
                     
-                    # અહિયાં FL રાખ્યું છે જેથી કોલમ નંબર ગણવામાં ગોટાળો ના થાય
                     clarity_list = ["FL", "IF", "VVS1", "VVS2", "VS1", "VS2", "SI1", "SI2", "SI3"]
                     if clarity in clarity_list:
                         clarity_offset = clarity_list.index(clarity)
@@ -140,7 +130,8 @@ if data_loaded[0] is not None:
                         
                         data_rows = df_tables.iloc[2:].copy()
                         
-                        size_match = pd.to_numeric(data_rows[size_col_idx], errors='coerce') == base_size
+                        # ડિસ્કાઉન્ટ ગોતવા માટે સીધું જ Polish Weight વાપર્યું છે:
+                        size_match = pd.to_numeric(data_rows[size_col_idx], errors='coerce') == polish_weight
                         color_match = data_rows[color_col_idx].astype(str).str.strip().str.upper() == color
                         
                         match_data = data_rows[size_match & color_match]
@@ -161,7 +152,7 @@ if data_loaded[0] is not None:
                             
                             st.success("🎉 તમારો ડેટા સફળતાપૂર્વક કેલ્ક્યુલેટ થઈ ગયો છે!")
                         else:
-                            st.warning(f"આ સાઈઝ ({base_size}) અને કલર ({color}) માટે ડિસ્કાઉન્ટ ડેટા મળ્યો નથી.")
+                            st.warning(f"આ વજન ({polish_weight}) અને કલર ({color}) માટે Tables શીટમાં ડિસ્કાઉન્ટ ડેટા મળ્યો નથી.")
                     else:
                         st.error("ક્લેરિટીનું નામ મેચ થતું નથી.")
             except Exception as e:
