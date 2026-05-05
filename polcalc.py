@@ -49,7 +49,7 @@ if data_loaded[0] is not None:
     with col2:
         cut = st.selectbox("Cut Group (કટ)", ["3EX", "VG", "EX", "GD", "FAIR"])
         fluorescence = st.selectbox("Fluorescence", ["NON", "FNT", "MED", "STG", "VSTG"])
-        polish_weight = st.number_input("Polish Weight (વજન)", min_value=0.01, value=0.40, step=0.01)
+        polish_weight = st.number_input("Polish Weight (વજન)", min_value=0.01, value=0.30, step=0.01)
 
     # ==========================================
     # POINT 1: SIZE માટે ઓટોમેટિક VLOOKUP
@@ -63,27 +63,25 @@ if data_loaded[0] is not None:
         
         for idx, row in size_df.iterrows():
             if polish_weight >= row['Weight']:
-                calc_size = str(row['SizeLabel']).strip()
+                calc_size = str(row['SizeLabel']) # અહિયાંથી બધી સ્પેસની છેડછાડ કાઢી નાખી
     except Exception as e:
         calc_size = "Error"
 
     # ==========================================
-    # POINT 2: RAP PRICE માટે પર્ફેક્ટ PURE VLOOKUP 
+    # POINT 2: RAP PRICE માટે પર્ફેક્ટ PURE VLOOKUP (સાચી સ્પેસ સાથે)
     # ==========================================
     calc_rap = 0.0
     search_key = ""
     if calc_size and calc_size != "Error":
-        # ચારેય વસ્તુ જોઈન્ટ કરી 
-        raw_joined_str = f"{shape}{calc_size}{clarity}{color}"
-        # પાયથોન માટે બધી જ સ્પેસ કાઢીને સર્ચ-કી બનાવી
-        search_key = raw_joined_str.replace(" ", "").upper()
+        
+        # ખાલી શબ્દોની આજુબાજુનો કચરો કાઢ્યો, પણ calc_size એમના એમ રાખી
+        search_key = f"{shape.strip()}{calc_size}{clarity.strip()}{color.strip()}".upper()
         
         try:
-            # એક્સેલની કોલમ 15 (O) ને ઇન્ડેક્સ 14 તરીકે લીધી
-            # regex=True વાપરીને અદ્રશ્ય સ્પેસ અને કચરો બધું જ સાફ કરી દીધું
-            lookup_col = df_list.iloc[:, 14].astype(str).str.replace(r'\s+', '', regex=True).str.upper()
+            # એક્સેલની કોલમ 15 (Index 14) નો ડેટા 
+            lookup_col = df_list.iloc[:, 14].astype(str).str.strip().str.upper()
             
-            # એક્સેલની કોલમ 16 (P) ને ઇન્ડેક્સ 15 તરીકે લીધી
+            # એક્સેલની કોલમ 16 (Index 15) નો ડેટા 
             result_col = df_list.iloc[:, 15]
             
             # અસલી VLOOKUP (Exact Match)
@@ -99,7 +97,7 @@ if data_loaded[0] is not None:
     with col3:
         st.text_input("Size (ઓટોમેટિક સાઈઝ)", value=calc_size, disabled=True)
         st.text_input("Rap Price ($) (ઓટોમેટિક રૅપ)", value=f"{calc_rap:,.2f}" if calc_rap else "0.00", disabled=True)
-        # યુઝરને દેખાડવા માટે કે પાયથોન VLOOKUP માં શું સર્ચ કરે છે
+        # 🔍 યુઝરને દેખાડવા માટે કે પાયથોન VLOOKUP માં એક્ઝેક્ટ શું સર્ચ કરે છે
         st.caption(f"🔍 VLOOKUP Key: **{search_key}**")
         
     st.divider()
@@ -158,7 +156,7 @@ if data_loaded[0] is not None:
                             pol_amt = rate_per_cts * polish_weight
                             
                             # ==========================================
-                            # POINT 3: 4 COLUMN માં RESULT
+                            # 4 COLUMN માં RESULT
                             # ==========================================
                             st.subheader("📊 ગણતરીનું પરિણામ")
                             res_col1, res_col2, res_col3, res_col4 = st.columns(4)
