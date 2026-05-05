@@ -52,7 +52,7 @@ if data_loaded[0] is not None:
         polish_weight = st.number_input("Polish Weight (વજન)", min_value=0.01, value=0.30, step=0.01)
 
     # ==========================================
-    # POINT 1: ઓટોમેટિક SIZE 
+    # POINT 1: VLOOKUP (Approximate Match) for SIZE
     # ==========================================
     calc_size = ""
     try:
@@ -63,29 +63,30 @@ if data_loaded[0] is not None:
         
         for idx, row in size_df.iterrows():
             if polish_weight >= row['Weight']:
-                calc_size = str(row['SizeLabel'])
+                calc_size = str(row['SizeLabel']).strip()
     except Exception as e:
         calc_size = "Error"
 
     # ==========================================
-    # POINT 2: ઓટોમેટિક RAP PRICE (EXACT MATCH - કોઈ વધારાની સ્પેસ નહિ)
+    # POINT 2: VLOOKUP (Exact Match) for RAP PRICE 
     # ==========================================
     calc_rap = 0.0
     joined_str = ""
     if calc_size and calc_size != "Error":
-        # સીધું જોઈન્ટ: વગર કોઈ સ્પેસ ઉમેર્યે (જેવું એક્સેલમાં છે એવું જ)
-        joined_str = f"{shape}{calc_size}{clarity}{color}"
+        
+        # આપણું સર્ચ કરવાનું નામ (બધી જ સ્પેસ હટાવીને કેપિટલ કર્યું)
+        joined_str = f"{shape}{calc_size}{clarity}{color}".replace(" ", "").upper()
         
         try:
-            # કોલમ 15 (ઇન્ડેક્સ 14) નો ડેટા 
-            col_data = df_list.iloc[:, 14].astype(str).str.strip()
+            # 15મી કોલમ (Index 14) નો ડેટા લીધો અને એમાંથી પણ બધી જ સ્પેસ કાઢી નાખી
+            lookup_range = df_list.iloc[:, 14].astype(str).str.replace(" ", "").str.upper()
             
-            # Exact Match 
-            match_idx = col_data[col_data == joined_str].index
-            
-            if not match_idx.empty:
-                # મળી જાય એટલે 16 માં નંબરની કોલમ (ઇન્ડેક્સ 15) માંથી Rap Price લેશે
-                val = df_list.iloc[match_idx[0], 15]
+            # પર્ફેક્ટ VLOOKUP માર્યું
+            if joined_str in lookup_range.values:
+                match_idx = lookup_range[lookup_range == joined_str].index[0]
+                
+                # 16મી કોલમ (Index 15) માંથી જવાબ લીધો
+                val = df_list.iloc[match_idx, 15]
                 calc_rap = float(pd.to_numeric(val, errors='coerce'))
                 if pd.isna(calc_rap):
                     calc_rap = 0.0
@@ -103,8 +104,7 @@ if data_loaded[0] is not None:
         if not calc_size or calc_size == "Error":
             st.error("સાઈઝ ઓટોમેટિક કેલ્ક્યુલેટ થઈ શકી નથી. મહેરબાની કરીને List શીટમાં W2:X23 ચેક કરો.")
         elif calc_rap == 0.0:
-            # એરર મેસેજમાં પણ હવે મેં વચ્ચેની બધી સ્પેસ કાઢી નાખી છે! 
-            st.error(f"Rap Price માટે નામ '{joined_str}' એક્સેલની કોલમ 15 (O) માં મળ્યું નથી અથવા ભાવ 0 છે!")
+            st.error(f"VLOOKUP ERROR: '{joined_str}' નામ એક્સેલની કોલમ 15 (O) માં મળ્યું નથી અથવા ભાવ 0 છે!")
         else:
             try:
                 try:
