@@ -23,7 +23,6 @@ def load_diamond_data():
                 office_file.load_key(password=file_password)
                 office_file.decrypt(decrypted_workbook)
                 df_tables = pd.read_excel(decrypted_workbook, sheet_name="Tables", header=None)
-                # List શીટ પણ સાથે જ લોડ કરી લીધી
                 df_list = pd.read_excel(decrypted_workbook, sheet_name="List", header=None) 
             else:
                 df_tables = pd.read_excel(file_path, sheet_name="Tables", header=None)
@@ -50,7 +49,6 @@ if data_loaded[0] is not None:
     with col2:
         cut = st.selectbox("Cut Group (કટ)", ["3EX", "VG", "EX", "GD", "FAIR"])
         fluorescence = st.selectbox("Fluorescence", ["NON", "FNT", "MED", "STG", "VSTG"])
-        # વજન અહિયાં લીધું છે જેથી તરત ઓટોમેટિક સાઈઝ ગણાઈ જાય
         polish_weight = st.number_input("Polish Weight (વજન)", min_value=0.01, value=0.30, step=0.01)
 
     # ==========================================
@@ -58,13 +56,11 @@ if data_loaded[0] is not None:
     # ==========================================
     calc_size = ""
     try:
-        # પાયથોનમાં W કોલમ 22 નંબર પર અને X 23 નંબર પર આવે (A=0 થી ગણીએ તો)
         size_df = df_list.iloc[1:24, 22:24].copy() 
         size_df.columns = ['Weight', 'SizeLabel']
         size_df['Weight'] = pd.to_numeric(size_df['Weight'], errors='coerce')
         size_df = size_df.dropna(subset=['Weight']).sort_values('Weight')
         
-        # Approximate Match (જે વજન નાખ્યું હોય એના બરાબર અથવા એનાથી નાનું વજન ગોતશે)
         for idx, row in size_df.iterrows():
             if polish_weight >= row['Weight']:
                 calc_size = str(row['SizeLabel'])
@@ -72,31 +68,30 @@ if data_loaded[0] is not None:
         calc_size = "Error"
 
     # ==========================================
-    # POINT 2: ઓટોમેટિક RAP PRICE ગણતરી (SHAPE+SIZE+CLARITY+COLOR)
+    # POINT 2: ઓટોમેટિક RAP PRICE (તમારા કહ્યા મુજબ કોલમ સેટ કરી)
     # ==========================================
     calc_rap = 0.0
     if calc_size and calc_size != "Error":
-        # ચારેય વસ્તુ જોઈન્ટ કરી (દા.ત. ROUND0.30 - 0.34VS1E)
+        # ચારેય વસ્તુ જોઈન્ટ કરી
         joined_str = f"{shape}{calc_size}{clarity}{color}"
-        
-        # સ્પેસ કાઢીને બધું કેપિટલ કરી દીધું જેથી 100% મેચ થાય
         joined_str_clean = joined_str.replace(" ", "").upper()
         
-        # List શીટમાં બધી કોલમમાં આ જોઈન્ટ કરેલું નામ ગોતશે
-        for col_idx in range(df_list.shape[1] - 1):
-            col_data = df_list[col_idx].astype(str).str.replace(" ", "").str.upper()
+        # પાયથોન 0 થી ગણતરી ચાલુ કરે છે, એટલે કોલમ 15 = ઇન્ડેક્સ 14, કોલમ 16 = ઇન્ડેક્સ 15
+        criteria_col_idx = 14  
+        result_col_idx = 15    
+        
+        try:
+            # 15 માં નંબરની કોલમમાં જોઈન્ટ કરેલું નામ ગોતશે
+            col_data = df_list.iloc[:, criteria_col_idx].astype(str).str.replace(" ", "").str.upper()
             match_idx = col_data[col_data == joined_str_clean].index
             
             if not match_idx.empty:
-                # નામ મળી જાય એટલે એની બાજુની કોલમમાંથી ભાવ ખેંચી લેશે
-                try:
-                    calc_rap = float(df_list.iloc[match_idx[0], col_idx + 1])
-                except:
-                    calc_rap = 0.0
-                break
+                # મળી જાય એટલે 16 માં નંબરની કોલમમાંથી Rap Price લેશે
+                calc_rap = float(df_list.iloc[match_idx[0], result_col_idx])
+        except Exception as e:
+            calc_rap = 0.0
 
     with col3:
-        # ઓટોમેટિક આવેલા જવાબ અહિયાં બોક્સમાં દેખાડશે (યુઝર બદલી નહિ શકે)
         st.text_input("Size (ઓટોમેટિક સાઈઝ)", value=calc_size, disabled=True)
         st.text_input("Rap Price ($) (ઓટોમેટિક રૅપ)", value=f"{calc_rap:,.2f}" if calc_rap else "0.00", disabled=True)
         
@@ -107,10 +102,9 @@ if data_loaded[0] is not None:
         if not calc_size or calc_size == "Error":
             st.error("સાઈઝ ઓટોમેટિક કેલ્ક્યુલેટ થઈ શકી નથી. મહેરબાની કરીને List શીટમાં W2:X23 ચેક કરો.")
         elif calc_rap == 0.0:
-            st.error(f"Rap Price માટે તમે જોઈન્ટ કરેલું નામ '{shape} {calc_size} {clarity} {color}' એક્સેલની List શીટમાં મળ્યું નથી!")
+            st.error(f"Rap Price માટે તમે જોઈન્ટ કરેલું નામ '{shape} {calc_size} {clarity} {color}' એક્સેલની કોલમ 15 માં મળ્યું નથી!")
         else:
             try:
-                # સાઈઝમાંથી પહેલો આંકડો ખેંચવો (જેમ કે 0.30)
                 try:
                     base_size = float(calc_size.split("-")[0].strip())
                 except:
@@ -153,16 +147,14 @@ if data_loaded[0] is not None:
                         if not match_data.empty:
                             discount_percent = float(match_data.iloc[0, final_col_idx])
                             
-                            # ઓટોમેટિક આવેલા Rap Price પરથી ગણતરી
                             rate_per_cts = calc_rap * (1 + (discount_percent / 100))
                             pol_amt = rate_per_cts * polish_weight
                             
                             # ==========================================
-                            # POINT 3: 4 COLUMN માં RESULT દેખાડવું
+                            # POINT 3: 4 COLUMN માં RESULT 
                             # ==========================================
                             st.subheader("📊 ગણતરીનું પરિણામ")
                             
-                            # અહિયાં 3 ની જગ્યાએ 4 કોલમ કરી દીધી છે
                             res_col1, res_col2, res_col3, res_col4 = st.columns(4)
                             
                             res_col1.metric("Rap Price ($)", f"${calc_rap:,.2f}")
