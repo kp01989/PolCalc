@@ -8,7 +8,13 @@ st.set_page_config(page_title="Diamond Polish Calc", layout="wide")
 st.markdown("""
     <style>
         .block-container { padding-top: 1.5rem; padding-bottom: 1rem; }
-        label { font-size: 0.85rem !important; font-weight: bold !important; }
+        
+        label { 
+            font-size: 0.85rem !important; 
+            font-weight: bold !important; 
+            padding-left: 5px !important; 
+        }
+        
         .custom-compare-table {
             font-size: 0.95rem !important; 
             width: 100% !important; 
@@ -61,10 +67,10 @@ data_loaded = load_diamond_data()
 if data_loaded[0] is not None:
     df_tables, df_list = data_loaded
     
-    # --- નવા ઓર્ડર પ્રમાણે 9 બોક્સ ગોઠવ્યા ---
     c1, c2, c3, c4, c5, c6, c7, c8, c9 = st.columns(9)
     
-    with c1: shape = st.selectbox("Shape", ["ROUND", "PRINCESS", "OVAL", "MARQUISE", "PEAR", "EMERALD"])
+    # અહીથી શેપને ફિક્સ કરી દીધો છે
+    with c1: shape = st.text_input("Shape", value="ROUND", disabled=True)
     with c2: polish_weight = st.number_input("Weight", min_value=0.01, value=0.30, step=0.01)
     with c3: color = st.selectbox("Color", ["D", "E", "F", "G", "H", "I", "J", "K", "L", "M"])
     with c4: clarity = st.selectbox("Clarity", ["IF", "VVS1", "VVS2", "VS1", "VS2", "SI1", "SI2", "SI3"])
@@ -117,9 +123,8 @@ if data_loaded[0] is not None:
             st.error(f"VLOOKUP FAILED: '{search_key}' not found in Excel Column 15 (O) or price is 0!")
         else:
             try:
-                # શોર્ટ ફોર્મ એક્સેલ માટે વપરાશે પણ UI માં આખા નામ દેખાશે
                 fluo_short = fluorescence
-                if fluorescence == "Fluorescence": fluo_short = "NON" # Fallback if needed
+                if fluorescence == "Fluorescence": fluo_short = "NON" 
                 
                 cut_fluo = f"{cut[:3] if cut == '3EX' else cut}-{fluorescence}" 
                 row_0 = df_tables.iloc[0].fillna('').astype(str).str.strip().str.upper()
@@ -175,7 +180,6 @@ if data_loaded[0] is not None:
                                 if len(st.session_state['compare_list']) >= 10:
                                     st.warning("⚠️ List is full! You can compare a maximum of 10 diamonds. Please download the data below.")
                                 else:
-                                    # નવા ઓર્ડર પ્રમાણે ડેટા સેવ કર્યો
                                     st.session_state['compare_list'].append({
                                         "Shape": shape,
                                         "Weight": polish_weight,
