@@ -61,18 +61,16 @@ data_loaded = load_diamond_data()
 if data_loaded[0] is not None:
     df_tables, df_list = data_loaded
     
-    # --- 9 બોક્સ એક જ લાઈનમાં (Additional Disc માટે નવું બોક્સ એડ કર્યું) ---
+    # --- નવા ઓર્ડર પ્રમાણે 9 બોક્સ ગોઠવ્યા ---
     c1, c2, c3, c4, c5, c6, c7, c8, c9 = st.columns(9)
     
-    with c1: shape = st.selectbox("SHAPE", ["ROUND", "PRINCESS", "OVAL", "MARQUISE", "PEAR", "EMERALD"])
-    with c2: color = st.selectbox("Color", ["D", "E", "F", "G", "H", "I", "J", "K", "L", "M"])
-    with c3: clarity = st.selectbox("Clarity", ["IF", "VVS1", "VVS2", "VS1", "VS2", "SI1", "SI2", "SI3"])
-    with c4: cut = st.selectbox("Cut", ["3EX", "VG", "EX", "GD", "FAIR"])
-    with c5: fluorescence = st.selectbox("Fluo.", ["NON", "FNT", "MED", "STG", "VSTG"])
-    with c6: polish_weight = st.number_input("Weight", min_value=0.01, value=0.30, step=0.01)
-    
-    # --- નવું બોક્સ (Additional Discount) ---
-    with c7: add_disc = st.number_input("Add. Disc(%)", value=0.00, step=0.50, format="%.2f")
+    with c1: shape = st.selectbox("Shape", ["ROUND", "PRINCESS", "OVAL", "MARQUISE", "PEAR", "EMERALD"])
+    with c2: polish_weight = st.number_input("Weight", min_value=0.01, value=0.30, step=0.01)
+    with c3: color = st.selectbox("Color", ["D", "E", "F", "G", "H", "I", "J", "K", "L", "M"])
+    with c4: clarity = st.selectbox("Clarity", ["IF", "VVS1", "VVS2", "VS1", "VS2", "SI1", "SI2", "SI3"])
+    with c5: cut = st.selectbox("Cut Group", ["3EX", "VG", "EX", "GD", "FAIR"])
+    with c6: fluorescence = st.selectbox("Fluorescence", ["NON", "FNT", "MED", "STG", "VSTG"])
+    with c7: add_disc = st.number_input("Additional Disc. %", value=0.00, step=0.50, format="%.2f")
 
     calc_size = ""
     try:
@@ -119,7 +117,11 @@ if data_loaded[0] is not None:
             st.error(f"VLOOKUP FAILED: '{search_key}' not found in Excel Column 15 (O) or price is 0!")
         else:
             try:
-                cut_fluo = f"{cut}-{fluorescence}" 
+                # શોર્ટ ફોર્મ એક્સેલ માટે વપરાશે પણ UI માં આખા નામ દેખાશે
+                fluo_short = fluorescence
+                if fluorescence == "Fluorescence": fluo_short = "NON" # Fallback if needed
+                
+                cut_fluo = f"{cut[:3] if cut == '3EX' else cut}-{fluorescence}" 
                 row_0 = df_tables.iloc[0].fillna('').astype(str).str.strip().str.upper()
                 row_1 = df_tables.iloc[1].fillna('').astype(str).str.strip().str.upper()
                 
@@ -153,9 +155,8 @@ if data_loaded[0] is not None:
                         match_data = data_rows[size_match & color_match]
                         
                         if not match_data.empty:
-                            # --- નવું કેલ્ક્યુલેશન લોજિક ---
                             base_discount = float(match_data.iloc[0, final_col_idx])
-                            final_discount = base_discount + add_disc # એડિશનલ ડિસ્કાઉન્ટ ઉમેરાયું
+                            final_discount = base_discount + add_disc 
                             
                             rate_per_cts = calc_rap * (1 + (final_discount / 100))
                             pol_amt = rate_per_cts * polish_weight
@@ -174,16 +175,17 @@ if data_loaded[0] is not None:
                                 if len(st.session_state['compare_list']) >= 10:
                                     st.warning("⚠️ List is full! You can compare a maximum of 10 diamonds. Please download the data below.")
                                 else:
+                                    # નવા ઓર્ડર પ્રમાણે ડેટા સેવ કર્યો
                                     st.session_state['compare_list'].append({
                                         "Shape": shape,
                                         "Weight": polish_weight,
                                         "Color": color,
                                         "Clarity": clarity,
-                                        "Cut G": cut,
-                                        "Fluo.": fluorescence,   
-                                        "Add. Disc": f"{add_disc:.2f}%",     # નવું ફિલ્ડ ટેબલ માટે 
+                                        "Cut Group": cut,
+                                        "Fluorescence": fluorescence,   
+                                        "Additional Disc. %": f"{add_disc:.2f}%",     
                                         "Rap Price": f"${calc_rap:,.2f}",
-                                        "Total Disc": f"{final_discount:.2f}%", # નવું ફાઇનલ ડિસ્કાઉન્ટ
+                                        "Total Disc": f"{final_discount:.2f}%", 
                                         "Rate/Cts": f"${rate_per_cts:,.2f}",
                                         "Total Amount": f"${pol_amt:,.2f}"
                                     })
