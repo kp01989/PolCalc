@@ -43,7 +43,6 @@ if 'compare_list' not in st.session_state:
     st.session_state['compare_list'] = []
 if 'calc_result' not in st.session_state:
     st.session_state['calc_result'] = None
-# ઓટો-ક્લિયર એરર સોલ્વ કરવા માટેનો નવો જુગાડ (Form Key)
 if 'form_key' not in st.session_state:
     st.session_state['form_key'] = 0
 
@@ -73,12 +72,11 @@ data_loaded = load_diamond_data()
 if data_loaded[0] is not None:
     df_tables, df_list = data_loaded
     
-    fk = st.session_state['form_key'] # ડાયનેમિક કી 
+    fk = st.session_state['form_key'] 
     
     c1, c2, c3, c4, c5, c6, c7, c8, c9 = st.columns(9)
     
     with c1: shape = st.text_input("Shape", value="ROUND", disabled=True)
-    
     with c2: polish_weight = st.number_input("Weight", min_value=0.01, value=None, placeholder="0.00", step=0.01, key=f"weight_{fk}")
     with c3: color = st.selectbox("Color", ["D", "E", "F", "G", "H", "I", "J", "K", "L", "M"], index=None, placeholder="Select", key=f"color_{fk}")
     with c4: clarity = st.selectbox("Clarity", ["IF", "VVS1", "VVS2", "VS1", "VS2", "SI1", "SI2", "SI3"], index=None, placeholder="Select", key=f"clarity_{fk}")
@@ -126,6 +124,9 @@ if data_loaded[0] is not None:
         comp_clicked = st.button("Add to Compare ⚖️", type="secondary", use_container_width=True)
 
     if calc_clicked or comp_clicked:
+        # જો યુઝર ખાલી બોક્સમાં બટન દબાવશે તો જૂનું રિઝલ્ટ ગાયબ થઈ જશે
+        st.session_state['calc_result'] = None 
+        
         if polish_weight is None:
             st.warning("⚠️ Please enter the Weight before calculating.")
         elif None in [color, clarity, cut, fluorescence]:
@@ -190,7 +191,7 @@ if data_loaded[0] is not None:
                                     "rate": rate_per_cts,
                                     "amt": pol_amt
                                 }
-                                st.session_state['form_key'] += 1 # આનાથી બધા બોક્સ જાતે જ ખાલી થઈ જશે
+                                st.session_state['form_key'] += 1 
                                 st.rerun() 
                             
                             if comp_clicked:
@@ -211,7 +212,7 @@ if data_loaded[0] is not None:
                                         "Total Amount": f"${pol_amt:,.2f}"
                                     })
                                     st.session_state['calc_result'] = None 
-                                    st.session_state['form_key'] += 1 # આનાથી બધા બોક્સ જાતે જ ખાલી થઈ જશે
+                                    st.session_state['form_key'] += 1 
                                     st.rerun()
                         else:
                             st.warning(f"Discount data not found in Tables sheet for Weight ({polish_weight}) and Color ({color}).")
@@ -220,11 +221,14 @@ if data_loaded[0] is not None:
             except Exception as e:
                 st.error(f"Unexpected error in calculation: {e}")
 
-    # --- સેવ થયેલું રિઝલ્ટ દેખાડવા માટે ---
+    # --- સેવ થયેલું રિઝલ્ટ દેખાડવા માટે અને કલર ચેન્જ કરવા માટે ---
     if st.session_state['calc_result']:
         res = st.session_state['calc_result']
         st.divider()
-        st.subheader(f"📊 Calculation Result: {res['summary']}")
+        
+        # અહી રિઝલ્ટના નામને Cyan (વાદળી) કલર આપ્યો છે
+        st.markdown(f"### 📊 Calculation Result: <span style='color:#00FFFF;'>{res['summary']}</span>", unsafe_allow_html=True)
+        
         res_col1, res_col2, res_col3, res_col4 = st.columns(4)
         res_col1.metric("Rap Price ($)", f"${res['rap']:,.2f}")
         res_col2.metric("Total Disc (%)", f"{res['disc']:.2f}%")
