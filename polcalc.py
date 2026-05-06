@@ -70,32 +70,34 @@ if data_loaded[0] is not None:
     c1, c2, c3, c4, c5, c6, c7, c8, c9 = st.columns(9)
     
     with c1: shape = st.text_input("Shape", value="ROUND", disabled=True)
-    with c2: polish_weight = st.number_input("Weight", min_value=0.01, value=0.30, step=0.01)
     
-    # અહી index=None અને placeholder="Select" એડ કર્યું છે, જેથી એ એકદમ આછા કલરમાં દેખાય
+    # અહી value=None અને placeholder="0.00" કરી દીધું છે
+    with c2: polish_weight = st.number_input("Weight", min_value=0.01, value=None, placeholder="0.00", step=0.01)
+    
     with c3: color = st.selectbox("Color", ["D", "E", "F", "G", "H", "I", "J", "K", "L", "M"], index=None, placeholder="Select")
     with c4: clarity = st.selectbox("Clarity", ["IF", "VVS1", "VVS2", "VS1", "VS2", "SI1", "SI2", "SI3"], index=None, placeholder="Select")
     with c5: cut = st.selectbox("Cut Group", ["3EX", "VG", "EX", "GD", "FAIR"], index=None, placeholder="Select")
     with c6: fluorescence = st.selectbox("Fluorescence", ["NON", "FNT", "MED", "STG", "VSTG"], index=None, placeholder="Select")
     
-    with c7: add_disc = st.number_input("Additional Disc. %", value=0.00, step=0.50, format="%.2f")
+    # અહી પણ value=None અને placeholder="0.00" કરી દીધું છે
+    with c7: add_disc = st.number_input("Additional Disc. %", value=None, placeholder="0.00", step=0.50, format="%.2f")
 
     calc_size = ""
-    try:
-        size_df = df_list.iloc[:, [11, 13]].copy() 
-        size_df.columns = ['Weight', 'SizeLabel']
-        size_df['Weight'] = pd.to_numeric(size_df['Weight'], errors='coerce')
-        size_df = size_df.dropna(subset=['Weight', 'SizeLabel']).sort_values('Weight')
-        for idx, row in size_df.iterrows():
-            if polish_weight >= row['Weight']:
-                calc_size = str(row['SizeLabel']).strip()
-    except:
-        calc_size = "Error"
+    if polish_weight is not None:
+        try:
+            size_df = df_list.iloc[:, [11, 13]].copy() 
+            size_df.columns = ['Weight', 'SizeLabel']
+            size_df['Weight'] = pd.to_numeric(size_df['Weight'], errors='coerce')
+            size_df = size_df.dropna(subset=['Weight', 'SizeLabel']).sort_values('Weight')
+            for idx, row in size_df.iterrows():
+                if polish_weight >= row['Weight']:
+                    calc_size = str(row['SizeLabel']).strip()
+        except:
+            calc_size = "Error"
 
     calc_rap = 0.0
     search_key = ""
-    # જો યુઝરે કલર કે ક્લેરિટી સિલેક્ટ કરી હોય તો જ VLOOKUP ચાલશે
-    if calc_size and calc_size != "Error" and color is not None and clarity is not None:
+    if polish_weight is not None and calc_size and calc_size != "Error" and color is not None and clarity is not None:
         search_key = f"{shape.strip()}{calc_size}{clarity.strip()}{color.strip()}".upper()
         try:
             lookup_col = df_list.iloc[:, 14].astype(str).str.strip().str.upper()
@@ -108,7 +110,7 @@ if data_loaded[0] is not None:
         except:
             calc_rap = 0.0
 
-    with c8: st.text_input("Size", value=calc_size if color is not None else "", disabled=True)
+    with c8: st.text_input("Size", value=calc_size if (color is not None and polish_weight is not None) else "", disabled=True)
     with c9: st.text_input("Rap Price", value=f"{calc_rap:,.2f}" if calc_rap else "0.00", disabled=True)
 
     st.write("")
@@ -120,8 +122,9 @@ if data_loaded[0] is not None:
         comp_clicked = st.button("Add to Compare ⚖️", type="secondary", use_container_width=True)
 
     if calc_clicked or comp_clicked:
-        # None કન્ડિશન ચેક કરવા માટે
-        if None in [color, clarity, cut, fluorescence]:
+        if polish_weight is None:
+            st.warning("⚠️ Please enter the Weight before calculating.")
+        elif None in [color, clarity, cut, fluorescence]:
             st.warning("⚠️ Please select Color, Clarity, Cut Group, and Fluorescence before calculating.")
         elif not calc_size or calc_size == "Error":
             st.error("Size could not be calculated automatically.")
@@ -129,6 +132,12 @@ if data_loaded[0] is not None:
             st.error(f"VLOOKUP FAILED: '{search_key}' not found in Excel Column 15 (O) or price is 0!")
         else:
             try:
+                # જો યુઝરે ખાલી રાખ્યું હોય તો તેને 0.00 ગણી લેશે
+                actual_add_disc = add_disc if add_disc is not None else 0.00
+
+                fluo_short = fluorescence
+                if fluorescence == "Fluorescence": fluo_short = "NON" 
+                
                 cut_fluo = f"{cut[:3] if cut == '3EX' else cut}-{fluorescence}" 
                 row_0 = df_tables.iloc[0].fillna('').astype(str).str.strip().str.upper()
                 row_1 = df_tables.iloc[1].fillna('').astype(str).str.strip().str.upper()
@@ -164,7 +173,7 @@ if data_loaded[0] is not None:
                         
                         if not match_data.empty:
                             base_discount = float(match_data.iloc[0, final_col_idx])
-                            final_discount = base_discount + add_disc 
+                            final_discount = base_discount + actual_add_disc 
                             
                             rate_per_cts = calc_rap * (1 + (final_discount / 100))
                             pol_amt = rate_per_cts * polish_weight
@@ -192,7 +201,7 @@ if data_loaded[0] is not None:
                                         "Clarity": clarity,
                                         "Cut Group": cut,
                                         "Fluorescence": fluorescence,   
-                                        "Additional Disc. %": f"{add_disc:.2f}%",     
+                                        "Additional Disc. %": f"{actual_add_disc:.2f}%",     
                                         "Rap Price": f"${calc_rap:,.2f}",
                                         "Total Disc": f"{final_discount:.2f}%", 
                                         "Rate/Cts": f"${rate_per_cts:,.2f}",
