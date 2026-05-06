@@ -69,13 +69,15 @@ if data_loaded[0] is not None:
     
     c1, c2, c3, c4, c5, c6, c7, c8, c9 = st.columns(9)
     
-    # અહીથી શેપને ફિક્સ કરી દીધો છે
     with c1: shape = st.text_input("Shape", value="ROUND", disabled=True)
     with c2: polish_weight = st.number_input("Weight", min_value=0.01, value=0.30, step=0.01)
-    with c3: color = st.selectbox("Color", ["D", "E", "F", "G", "H", "I", "J", "K", "L", "M"])
-    with c4: clarity = st.selectbox("Clarity", ["IF", "VVS1", "VVS2", "VS1", "VS2", "SI1", "SI2", "SI3"])
-    with c5: cut = st.selectbox("Cut Group", ["3EX", "VG", "EX", "GD", "FAIR"])
-    with c6: fluorescence = st.selectbox("Fluorescence", ["NON", "FNT", "MED", "STG", "VSTG"])
+    
+    # અહી બધામાં ડિફોલ્ટ "Select" મૂકી દીધું છે
+    with c3: color = st.selectbox("Color", ["Select", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M"])
+    with c4: clarity = st.selectbox("Clarity", ["Select", "IF", "VVS1", "VVS2", "VS1", "VS2", "SI1", "SI2", "SI3"])
+    with c5: cut = st.selectbox("Cut Group", ["Select", "3EX", "VG", "EX", "GD", "FAIR"])
+    with c6: fluorescence = st.selectbox("Fluorescence", ["Select", "NON", "FNT", "MED", "STG", "VSTG"])
+    
     with c7: add_disc = st.number_input("Additional Disc. %", value=0.00, step=0.50, format="%.2f")
 
     calc_size = ""
@@ -92,7 +94,7 @@ if data_loaded[0] is not None:
 
     calc_rap = 0.0
     search_key = ""
-    if calc_size and calc_size != "Error":
+    if calc_size and calc_size != "Error" and color != "Select" and clarity != "Select":
         search_key = f"{shape.strip()}{calc_size}{clarity.strip()}{color.strip()}".upper()
         try:
             lookup_col = df_list.iloc[:, 14].astype(str).str.strip().str.upper()
@@ -105,7 +107,7 @@ if data_loaded[0] is not None:
         except:
             calc_rap = 0.0
 
-    with c8: st.text_input("Size", value=calc_size, disabled=True)
+    with c8: st.text_input("Size", value=calc_size if color != "Select" else "", disabled=True)
     with c9: st.text_input("Rap Price", value=f"{calc_rap:,.2f}" if calc_rap else "0.00", disabled=True)
 
     st.write("")
@@ -117,7 +119,10 @@ if data_loaded[0] is not None:
         comp_clicked = st.button("Add to Compare ⚖️", type="secondary", use_container_width=True)
 
     if calc_clicked or comp_clicked:
-        if not calc_size or calc_size == "Error":
+        # જો કોઈ બોક્સમાં "Select" રહી ગયું હોય તો વોર્નિંગ આપશે
+        if "Select" in [color, clarity, cut, fluorescence]:
+            st.warning("⚠️ Please select Color, Clarity, Cut Group, and Fluorescence before calculating.")
+        elif not calc_size or calc_size == "Error":
             st.error("Size could not be calculated automatically.")
         elif calc_rap == 0.0:
             st.error(f"VLOOKUP FAILED: '{search_key}' not found in Excel Column 15 (O) or price is 0!")
@@ -166,9 +171,13 @@ if data_loaded[0] is not None:
                             rate_per_cts = calc_rap * (1 + (final_discount / 100))
                             pol_amt = rate_per_cts * polish_weight
                             
+                            # ડાયનેમિક હેડિંગ બનાવવા માટે 
+                            diamond_summary = f"{shape}-{polish_weight}-{color}-{clarity}-{cut}-{fluorescence}"
+                            
                             if calc_clicked:
                                 st.divider()
-                                st.subheader("📊 Calculation Result")
+                                # અહી ડાયનેમિક હેડિંગ સેટ કર્યું છે
+                                st.subheader(f"📊 Calculation Result: {diamond_summary}")
                                 res_col1, res_col2, res_col3, res_col4 = st.columns(4)
                                 res_col1.metric("Rap Price ($)", f"${calc_rap:,.2f}")
                                 res_col2.metric("Total Disc (%)", f"{final_discount:.2f}%")
