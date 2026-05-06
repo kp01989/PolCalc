@@ -61,7 +61,8 @@ data_loaded = load_diamond_data()
 if data_loaded[0] is not None:
     df_tables, df_list = data_loaded
     
-    c1, c2, c3, c4, c5, c6, c7, c8 = st.columns(8)
+    # --- 9 બોક્સ એક જ લાઈનમાં (Additional Disc માટે નવું બોક્સ એડ કર્યું) ---
+    c1, c2, c3, c4, c5, c6, c7, c8, c9 = st.columns(9)
     
     with c1: shape = st.selectbox("SHAPE", ["ROUND", "PRINCESS", "OVAL", "MARQUISE", "PEAR", "EMERALD"])
     with c2: color = st.selectbox("Color", ["D", "E", "F", "G", "H", "I", "J", "K", "L", "M"])
@@ -69,6 +70,9 @@ if data_loaded[0] is not None:
     with c4: cut = st.selectbox("Cut", ["3EX", "VG", "EX", "GD", "FAIR"])
     with c5: fluorescence = st.selectbox("Fluo.", ["NON", "FNT", "MED", "STG", "VSTG"])
     with c6: polish_weight = st.number_input("Weight", min_value=0.01, value=0.30, step=0.01)
+    
+    # --- નવું બોક્સ (Additional Discount) ---
+    with c7: add_disc = st.number_input("Add. Disc(%)", value=0.00, step=0.50, format="%.2f")
 
     calc_size = ""
     try:
@@ -97,8 +101,8 @@ if data_loaded[0] is not None:
         except:
             calc_rap = 0.0
 
-    with c7: st.text_input("Size", value=calc_size, disabled=True)
-    with c8: st.text_input("Rap Price", value=f"{calc_rap:,.2f}" if calc_rap else "0.00", disabled=True)
+    with c8: st.text_input("Size", value=calc_size, disabled=True)
+    with c9: st.text_input("Rap Price", value=f"{calc_rap:,.2f}" if calc_rap else "0.00", disabled=True)
 
     st.write("")
 
@@ -136,8 +140,6 @@ if data_loaded[0] is not None:
                         final_col_idx = cut_fluo_idx + clarity_offset
                         data_rows = df_tables.iloc[2:].copy()
                         
-                        # --- અહિયાં ફોલ્ટ હતો, જે હવે સોલ્વ કરી દીધો છે ---
-                        # એક્સેલના 0.3 સાથે મેચ કરવા માટે 0.30 - 0.34 માંથી 0.30 કાઢ્યું 
                         try:
                             base_size = float(calc_size.split("-")[0].strip())
                         except:
@@ -151,8 +153,11 @@ if data_loaded[0] is not None:
                         match_data = data_rows[size_match & color_match]
                         
                         if not match_data.empty:
-                            discount_percent = float(match_data.iloc[0, final_col_idx])
-                            rate_per_cts = calc_rap * (1 + (discount_percent / 100))
+                            # --- નવું કેલ્ક્યુલેશન લોજિક ---
+                            base_discount = float(match_data.iloc[0, final_col_idx])
+                            final_discount = base_discount + add_disc # એડિશનલ ડિસ્કાઉન્ટ ઉમેરાયું
+                            
+                            rate_per_cts = calc_rap * (1 + (final_discount / 100))
                             pol_amt = rate_per_cts * polish_weight
                             
                             if calc_clicked:
@@ -160,7 +165,7 @@ if data_loaded[0] is not None:
                                 st.subheader("📊 Calculation Result")
                                 res_col1, res_col2, res_col3, res_col4 = st.columns(4)
                                 res_col1.metric("Rap Price ($)", f"${calc_rap:,.2f}")
-                                res_col2.metric("Discount / Prem. (%)", f"{discount_percent}%")
+                                res_col2.metric("Total Disc (%)", f"{final_discount:.2f}%")
                                 res_col3.metric("Rate $ / Cts", f"${rate_per_cts:,.2f}")
                                 res_col4.metric("Pol Amt ($)", f"${pol_amt:,.2f}")
                                 st.success("🎉 Data calculated successfully!")
@@ -176,8 +181,9 @@ if data_loaded[0] is not None:
                                         "Clarity": clarity,
                                         "Cut G": cut,
                                         "Fluo.": fluorescence,   
+                                        "Add. Disc": f"{add_disc:.2f}%",     # નવું ફિલ્ડ ટેબલ માટે 
                                         "Rap Price": f"${calc_rap:,.2f}",
-                                        "Discount": f"{discount_percent}%",
+                                        "Total Disc": f"{final_discount:.2f}%", # નવું ફાઇનલ ડિસ્કાઉન્ટ
                                         "Rate/Cts": f"${rate_per_cts:,.2f}",
                                         "Total Amount": f"${pol_amt:,.2f}"
                                     })
