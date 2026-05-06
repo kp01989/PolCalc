@@ -43,6 +43,9 @@ if 'compare_list' not in st.session_state:
     st.session_state['compare_list'] = []
 if 'calc_result' not in st.session_state:
     st.session_state['calc_result'] = None
+# ઓટો-ક્લિયર એરર સોલ્વ કરવા માટેનો નવો જુગાડ (Form Key)
+if 'form_key' not in st.session_state:
+    st.session_state['form_key'] = 0
 
 @st.cache_data
 def load_diamond_data():
@@ -70,17 +73,18 @@ data_loaded = load_diamond_data()
 if data_loaded[0] is not None:
     df_tables, df_list = data_loaded
     
+    fk = st.session_state['form_key'] # ડાયનેમિક કી 
+    
     c1, c2, c3, c4, c5, c6, c7, c8, c9 = st.columns(9)
     
     with c1: shape = st.text_input("Shape", value="ROUND", disabled=True)
     
-    # દરેક બોક્સને 'key' આપી છે જેથી તેને ક્લિયર કરી શકાય
-    with c2: polish_weight = st.number_input("Weight", min_value=0.01, value=None, placeholder="0.00", step=0.01, key="weight_input")
-    with c3: color = st.selectbox("Color", ["D", "E", "F", "G", "H", "I", "J", "K", "L", "M"], index=None, placeholder="Select", key="color_input")
-    with c4: clarity = st.selectbox("Clarity", ["IF", "VVS1", "VVS2", "VS1", "VS2", "SI1", "SI2", "SI3"], index=None, placeholder="Select", key="clarity_input")
-    with c5: cut = st.selectbox("Cut Group", ["3EX", "VG", "EX", "GD", "FAIR"], index=None, placeholder="Select", key="cut_input")
-    with c6: fluorescence = st.selectbox("Fluorescence", ["NON", "FNT", "MED", "STG", "VSTG"], index=None, placeholder="Select", key="fluo_input")
-    with c7: add_disc = st.number_input("Additional Disc. %", value=None, placeholder="0.00", step=0.50, format="%.2f", key="add_disc_input")
+    with c2: polish_weight = st.number_input("Weight", min_value=0.01, value=None, placeholder="0.00", step=0.01, key=f"weight_{fk}")
+    with c3: color = st.selectbox("Color", ["D", "E", "F", "G", "H", "I", "J", "K", "L", "M"], index=None, placeholder="Select", key=f"color_{fk}")
+    with c4: clarity = st.selectbox("Clarity", ["IF", "VVS1", "VVS2", "VS1", "VS2", "SI1", "SI2", "SI3"], index=None, placeholder="Select", key=f"clarity_{fk}")
+    with c5: cut = st.selectbox("Cut Group", ["3EX", "VG", "EX", "GD", "FAIR"], index=None, placeholder="Select", key=f"cut_{fk}")
+    with c6: fluorescence = st.selectbox("Fluorescence", ["NON", "FNT", "MED", "STG", "VSTG"], index=None, placeholder="Select", key=f"fluo_{fk}")
+    with c7: add_disc = st.number_input("Additional Disc. %", value=None, placeholder="0.00", step=0.50, format="%.2f", key=f"add_{fk}")
 
     calc_size = ""
     if polish_weight is not None:
@@ -179,7 +183,6 @@ if data_loaded[0] is not None:
                             diamond_summary = f"{shape}-{polish_weight}-{color}-{clarity}-{cut}-{fluorescence}"
                             
                             if calc_clicked:
-                                # રિઝલ્ટને ડેટાબેઝ(Session) માં સેવ કર્યું જેથી ક્લિયર થયા પછી પણ દેખાય
                                 st.session_state['calc_result'] = {
                                     "summary": diamond_summary,
                                     "rap": calc_rap,
@@ -187,10 +190,8 @@ if data_loaded[0] is not None:
                                     "rate": rate_per_cts,
                                     "amt": pol_amt
                                 }
-                                # બધા બોક્સ ઓટો-ક્લિયર કરી દીધા
-                                for key in ["weight_input", "color_input", "clarity_input", "cut_input", "fluo_input", "add_disc_input"]:
-                                    st.session_state[key] = None
-                                st.rerun() # પેજ તરત રિફ્રેશ મારશે
+                                st.session_state['form_key'] += 1 # આનાથી બધા બોક્સ જાતે જ ખાલી થઈ જશે
+                                st.rerun() 
                             
                             if comp_clicked:
                                 if len(st.session_state['compare_list']) >= 10:
@@ -209,10 +210,8 @@ if data_loaded[0] is not None:
                                         "Rate/Cts": f"${rate_per_cts:,.2f}",
                                         "Total Amount": f"${pol_amt:,.2f}"
                                     })
-                                    st.session_state['calc_result'] = None # નવું રિઝલ્ટ આવે એટલે જૂનું કાઢી નાખ્યું
-                                    # બધા બોક્સ ઓટો-ક્લિયર કરી દીધા
-                                    for key in ["weight_input", "color_input", "clarity_input", "cut_input", "fluo_input", "add_disc_input"]:
-                                        st.session_state[key] = None
+                                    st.session_state['calc_result'] = None 
+                                    st.session_state['form_key'] += 1 # આનાથી બધા બોક્સ જાતે જ ખાલી થઈ જશે
                                     st.rerun()
                         else:
                             st.warning(f"Discount data not found in Tables sheet for Weight ({polish_weight}) and Color ({color}).")
