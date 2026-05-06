@@ -72,11 +72,11 @@ if data_loaded[0] is not None:
     with c1: shape = st.text_input("Shape", value="ROUND", disabled=True)
     with c2: polish_weight = st.number_input("Weight", min_value=0.01, value=0.30, step=0.01)
     
-    # અહી બધામાં ડિફોલ્ટ "Select" મૂકી દીધું છે
-    with c3: color = st.selectbox("Color", ["Select", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M"])
-    with c4: clarity = st.selectbox("Clarity", ["Select", "IF", "VVS1", "VVS2", "VS1", "VS2", "SI1", "SI2", "SI3"])
-    with c5: cut = st.selectbox("Cut Group", ["Select", "3EX", "VG", "EX", "GD", "FAIR"])
-    with c6: fluorescence = st.selectbox("Fluorescence", ["Select", "NON", "FNT", "MED", "STG", "VSTG"])
+    # અહી index=None અને placeholder="Select" એડ કર્યું છે, જેથી એ એકદમ આછા કલરમાં દેખાય
+    with c3: color = st.selectbox("Color", ["D", "E", "F", "G", "H", "I", "J", "K", "L", "M"], index=None, placeholder="Select")
+    with c4: clarity = st.selectbox("Clarity", ["IF", "VVS1", "VVS2", "VS1", "VS2", "SI1", "SI2", "SI3"], index=None, placeholder="Select")
+    with c5: cut = st.selectbox("Cut Group", ["3EX", "VG", "EX", "GD", "FAIR"], index=None, placeholder="Select")
+    with c6: fluorescence = st.selectbox("Fluorescence", ["NON", "FNT", "MED", "STG", "VSTG"], index=None, placeholder="Select")
     
     with c7: add_disc = st.number_input("Additional Disc. %", value=0.00, step=0.50, format="%.2f")
 
@@ -94,7 +94,8 @@ if data_loaded[0] is not None:
 
     calc_rap = 0.0
     search_key = ""
-    if calc_size and calc_size != "Error" and color != "Select" and clarity != "Select":
+    # જો યુઝરે કલર કે ક્લેરિટી સિલેક્ટ કરી હોય તો જ VLOOKUP ચાલશે
+    if calc_size and calc_size != "Error" and color is not None and clarity is not None:
         search_key = f"{shape.strip()}{calc_size}{clarity.strip()}{color.strip()}".upper()
         try:
             lookup_col = df_list.iloc[:, 14].astype(str).str.strip().str.upper()
@@ -107,7 +108,7 @@ if data_loaded[0] is not None:
         except:
             calc_rap = 0.0
 
-    with c8: st.text_input("Size", value=calc_size if color != "Select" else "", disabled=True)
+    with c8: st.text_input("Size", value=calc_size if color is not None else "", disabled=True)
     with c9: st.text_input("Rap Price", value=f"{calc_rap:,.2f}" if calc_rap else "0.00", disabled=True)
 
     st.write("")
@@ -119,8 +120,8 @@ if data_loaded[0] is not None:
         comp_clicked = st.button("Add to Compare ⚖️", type="secondary", use_container_width=True)
 
     if calc_clicked or comp_clicked:
-        # જો કોઈ બોક્સમાં "Select" રહી ગયું હોય તો વોર્નિંગ આપશે
-        if "Select" in [color, clarity, cut, fluorescence]:
+        # None કન્ડિશન ચેક કરવા માટે
+        if None in [color, clarity, cut, fluorescence]:
             st.warning("⚠️ Please select Color, Clarity, Cut Group, and Fluorescence before calculating.")
         elif not calc_size or calc_size == "Error":
             st.error("Size could not be calculated automatically.")
@@ -128,9 +129,6 @@ if data_loaded[0] is not None:
             st.error(f"VLOOKUP FAILED: '{search_key}' not found in Excel Column 15 (O) or price is 0!")
         else:
             try:
-                fluo_short = fluorescence
-                if fluorescence == "Fluorescence": fluo_short = "NON" 
-                
                 cut_fluo = f"{cut[:3] if cut == '3EX' else cut}-{fluorescence}" 
                 row_0 = df_tables.iloc[0].fillna('').astype(str).str.strip().str.upper()
                 row_1 = df_tables.iloc[1].fillna('').astype(str).str.strip().str.upper()
@@ -171,12 +169,10 @@ if data_loaded[0] is not None:
                             rate_per_cts = calc_rap * (1 + (final_discount / 100))
                             pol_amt = rate_per_cts * polish_weight
                             
-                            # ડાયનેમિક હેડિંગ બનાવવા માટે 
                             diamond_summary = f"{shape}-{polish_weight}-{color}-{clarity}-{cut}-{fluorescence}"
                             
                             if calc_clicked:
                                 st.divider()
-                                # અહી ડાયનેમિક હેડિંગ સેટ કર્યું છે
                                 st.subheader(f"📊 Calculation Result: {diamond_summary}")
                                 res_col1, res_col2, res_col3, res_col4 = st.columns(4)
                                 res_col1.metric("Rap Price ($)", f"${calc_rap:,.2f}")
